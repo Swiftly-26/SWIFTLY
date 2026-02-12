@@ -1,5 +1,4 @@
-// src/app/models.ts
-
+// frontend/src/app/models.ts
 export type Status = 'Open' | 'In Progress' | 'Blocked' | 'Done';
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 export type Role = 'Admin' | 'Agent';
@@ -41,5 +40,19 @@ export const validTransitions: Record<Status, Status[]> = {
   'Open': ['In Progress', 'Blocked'],
   'In Progress': ['Done', 'Blocked'],
   'Blocked': ['In Progress'],
-  'Done': []
+  'Done': [] // No transitions from Done
 };
+
+// Add this helper function to check if a request is overdue
+export function isOverdue(request: Request): boolean {
+  return request.status !== 'Done' && new Date(request.dueDate) < new Date();
+}
+
+// Add this helper to check if a request should be escalated
+export function shouldEscalate(request: Request): boolean {
+  if (request.status === 'Done' || request.priority === 'Critical') return false;
+  const dueDate = new Date(request.dueDate);
+  const now = new Date();
+  const daysOverdue = (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24);
+  return daysOverdue > 3;
+}
