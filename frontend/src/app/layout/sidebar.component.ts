@@ -1,4 +1,3 @@
-// frontend/src/app/layout/sidebar.component.ts
 import { Component, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -12,8 +11,8 @@ import { ApiService } from '../services/api.service';
     <aside class="sidebar">
       <!-- Logo -->
       <div class="logo">
-        <div class="logo-icon">O</div>
-        <span class="logo-text">OpsFlow</span>
+        <div class="logo-icon">S</div>
+        <span class="logo-text">SWIFTLY</span>
       </div>
 
       <!-- Navigation -->
@@ -46,8 +45,8 @@ import { ApiService } from '../services/api.service';
           Requests
         </a>
 
-        <!-- Agents link - COMPLETELY HIDDEN from non-Admin users -->
-        <a *ngIf="isAdmin"
+        <!-- Agents link - Only visible to Admin users -->
+        <a *ngIf="isAdmin" 
            routerLink="/agents"
            routerLinkActive="active"
            class="nav-item">
@@ -78,7 +77,6 @@ import { ApiService } from '../services/api.service';
       border-right: 1px solid #2d2f3e;
     }
 
-    /* Logo */
     .logo {
       display: flex;
       align-items: center;
@@ -95,9 +93,8 @@ import { ApiService } from '../services/api.service';
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 14px;
+      font-size: 16px;
       color: white;
-      font-family: 'Georgia', serif;
     }
     .logo-text {
       font-size: 1.1rem;
@@ -106,7 +103,6 @@ import { ApiService } from '../services/api.service';
       letter-spacing: -0.02em;
     }
 
-    /* Nav */
     .nav {
       display: flex;
       flex-direction: column;
@@ -147,7 +143,6 @@ import { ApiService } from '../services/api.service';
       color: #94a3b8;
     }
 
-    /* Footer */
     .sidebar-footer {
       padding: 16px 20px;
       font-size: 0.7rem;

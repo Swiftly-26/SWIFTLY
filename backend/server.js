@@ -1,4 +1,3 @@
-// backend/server.js
 import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,8 +7,12 @@ import Database from 'better-sqlite3';
 const app = express();
 const port = 3000;
 
-// Middleware
-app.use(cors());
+// Middleware - with CORS configuration
+app.use(cors({
+  origin: 'http://localhost:4200',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(helmet());
 
@@ -51,23 +54,23 @@ db.exec(`
 // Insert default agents if none exist
 const agentCount = db.prepare('SELECT COUNT(*) as count FROM agents').get();
 if (agentCount.count === 0) {
-  console.log('👤 Adding default agents...');
+  console.log('Adding default agents...');
   const insertAgent = db.prepare('INSERT INTO agents (id, name, role) VALUES (?, ?, ?)');
   insertAgent.run('agent-1', 'John Doe', 'Agent');
   insertAgent.run('agent-2', 'Jane Smith', 'Agent');
   insertAgent.run('agent-3', 'Alex Johnson', 'Agent');
   insertAgent.run('agent-4', 'Sarah Lee', 'Agent');
-  console.log('✅ Default agents added');
+  console.log('Default agents added successfully');
 }
 
 // =========================
-// 🌱 SEED DATABASE WITH SAMPLE DATA
+// SEED DATABASE WITH SAMPLE DATA
 // =========================
 
 // Insert seed data if no requests exist
 const requestCount = db.prepare('SELECT COUNT(*) as count FROM requests').get();
 if (requestCount.count === 0) {
-  console.log('🌱 Seeding database with sample requests...');
+  console.log('Seeding database with sample requests...');
   
   const insertRequest = db.prepare(`
     INSERT INTO requests (id, title, description, status, priority, dueDate, assignedAgentId, tags, createdAt, updatedAt)
@@ -222,13 +225,13 @@ if (requestCount.count === 0) {
     now
   );
   
-  console.log('✅ Sample requests added to database');
+  console.log('Sample requests added to database successfully');
 }
 
 // Insert sample comments if none exist
 const commentCount = db.prepare('SELECT COUNT(*) as count FROM comments').get();
 if (commentCount.count === 0) {
-  console.log('💬 Adding sample comments...');
+  console.log('Adding sample comments...');
   
   const insertComment = db.prepare(`
     INSERT INTO comments (id, requestId, author, text, type, createdAt)
@@ -248,7 +251,7 @@ if (commentCount.count === 0) {
     uuidv4(),
     'req-1',
     'John Doe',
-    'I\'ll look into this today. Checking the OAuth callback URL.',
+    'I will look into this today. Checking the OAuth callback URL.',
     'Status update',
     fiveMinutesAgo
   );
@@ -266,7 +269,7 @@ if (commentCount.count === 0) {
     uuidv4(),
     'req-1',
     'Jane Smith',
-    'I think I found the issue. The redirect URI doesn\'t match.',
+    'I think I found the issue. The redirect URI does not match.',
     'General',
     twoHoursAgo
   );
@@ -324,7 +327,7 @@ if (commentCount.count === 0) {
     uuidv4(),
     'req-5',
     'System Admin',
-    '⚠️ This request is now overdue by 2 days',
+    'This request is now overdue by 2 days',
     'System-generated',
     now
   );
@@ -406,11 +409,11 @@ if (commentCount.count === 0) {
     threeDaysAgo
   );
   
-  console.log('✅ Sample comments added to database');
+  console.log('Sample comments added to database successfully');
 }
 
 // =========================
-// 🔍 HEALTH CHECK ROUTE
+// HEALTH CHECK ROUTE
 // =========================
 
 app.get('/api/health', (req, res) => {
@@ -435,7 +438,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // =========================
-// 📌 REQUESTS ROUTES
+// REQUESTS ROUTES
 // =========================
 
 // Get all requests
@@ -596,7 +599,7 @@ app.delete('/api/requests/:id', (req, res) => {
 });
 
 // =========================
-// 💬 COMMENTS ROUTES
+// COMMENTS ROUTES
 // =========================
 
 // Get comments for a request
@@ -638,7 +641,7 @@ app.post('/api/requests/:id/comments', (req, res) => {
 });
 
 // =========================
-// 👥 AGENTS ROUTES
+// AGENTS ROUTES
 // =========================
 
 // Get all agents
@@ -687,7 +690,7 @@ app.delete('/api/agents/:id', (req, res) => {
 });
 
 // =========================
-// ⚡ ESCALATION ROUTE
+// ESCALATION ROUTE
 // =========================
 
 const checkEscalationsHandler = (req, res) => {
@@ -740,29 +743,29 @@ app.get('/api/requests/check-escalations', checkEscalationsHandler); // Added fo
 
 app.listen(port, () => {
   console.log('\n' + '='.repeat(50));
-  console.log(`✅ Backend server running at http://localhost:${port}`);
+  console.log(`Backend server running at http://localhost:${port}`);
   console.log('='.repeat(50));
-  console.log(`📊 DATABASE STATUS:`);
+  console.log(`DATABASE STATUS:`);
   console.log(`   Requests: ${db.prepare('SELECT COUNT(*) as count FROM requests').get().count}`);
   console.log(`   Agents: ${db.prepare('SELECT COUNT(*) as count FROM agents').get().count}`);
   console.log(`   Comments: ${db.prepare('SELECT COUNT(*) as count FROM comments').get().count}`);
   console.log('='.repeat(50));
-  console.log(`📋 API ENDPOINTS:`);
-  console.log(`   🔍 GET    /api/health`);
-  console.log(`   📌 GET    /api/requests`);
-  console.log(`   📌 GET    /api/requests/:id`);
-  console.log(`   📌 POST   /api/requests`);
-  console.log(`   📌 GET    /api/requests/:id/status  (fetch)`);
-  console.log(`   📌 PUT    /api/requests/:id/status  (update)`);
-  console.log(`   📌 GET    /api/requests/:id/assign  (fetch)`);
-  console.log(`   📌 PUT    /api/requests/:id/assign  (update)`);
-  console.log(`   📌 DELETE /api/requests/:id`);
-  console.log(`   💬 GET    /api/requests/:id/comments`);
-  console.log(`   💬 POST   /api/requests/:id/comments`);
-  console.log(`   👥 GET    /api/agents`);
-  console.log(`   👥 POST   /api/agents`);
-  console.log(`   👥 DELETE /api/agents/:id`);
-  console.log(`   ⚡ GET    /api/requests/check-escalations  (check)`);
-  console.log(`   ⚡ POST   /api/requests/check-escalations  (check)`);
+  console.log(`API ENDPOINTS:`);
+  console.log(`   GET    /api/health`);
+  console.log(`   GET    /api/requests`);
+  console.log(`   GET    /api/requests/:id`);
+  console.log(`   POST   /api/requests`);
+  console.log(`   GET    /api/requests/:id/status  (fetch)`);
+  console.log(`   PUT    /api/requests/:id/status  (update)`);
+  console.log(`   GET    /api/requests/:id/assign  (fetch)`);
+  console.log(`   PUT    /api/requests/:id/assign  (update)`);
+  console.log(`   DELETE /api/requests/:id`);
+  console.log(`   GET    /api/requests/:id/comments`);
+  console.log(`   POST   /api/requests/:id/comments`);
+  console.log(`   GET    /api/agents`);
+  console.log(`   POST   /api/agents`);
+  console.log(`   DELETE /api/agents/:id`);
+  console.log(`   GET    /api/requests/check-escalations  (check)`);
+  console.log(`   POST   /api/requests/check-escalations  (check)`);
   console.log('='.repeat(50));
 });

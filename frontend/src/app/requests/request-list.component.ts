@@ -11,7 +11,7 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="requests-page">
+    <div class="requests-container">
 
       <!-- Page Header -->
       <div class="page-header">
@@ -42,8 +42,14 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
         <button class="close-btn" (click)="errorMessage = ''">✕</button>
       </div>
 
+      <!-- Loading State -->
+      <div *ngIf="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading requests...</p>
+      </div>
+
       <!-- ── Create Form (Admin only) ── -->
-      <div *ngIf="showCreate && isAdmin" class="create-panel">
+      <div *ngIf="showCreate && isAdmin && !loading" class="create-panel">
         <h2 class="form-title">New Request</h2>
 
         <div class="form-grid">
@@ -53,7 +59,7 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
           </div>
           <div class="form-group span-2">
             <label class="form-label">Description <span class="required">*</span></label>
-            <textarea class="form-control" rows="3" placeholder="Detailed description of the request" [(ngModel)]="form.description"></textarea>
+            <textarea class="form-control" rows="3" placeholder="Detailed description" [(ngModel)]="form.description"></textarea>
           </div>
           <div class="form-group">
             <label class="form-label">Priority</label>
@@ -71,7 +77,6 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
               <option value="In Progress">In Progress</option>
               <option value="Blocked">Blocked</option>
             </select>
-            <span class="hint">Requests cannot be created as Done</span>
           </div>
           <div class="form-group">
             <label class="form-label">Due Date <span class="required">*</span></label>
@@ -100,8 +105,8 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
         </div>
       </div>
 
-      <!-- ── Filters & Search ── -->
-      <div class="filters-bar">
+      <!-- ── Filters & Search ── (Only show when not loading and data exists) -->
+      <div *ngIf="!loading && requests.length > 0" class="filters-bar">
         <div class="search-wrap">
           <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -143,66 +148,49 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
         <button *ngIf="hasActiveFilters()" class="btn-clear" (click)="clearFilters()">Clear filters</button>
       </div>
 
-      <!-- ── Table ── -->
-      <div class="panel">
-
-        <div *ngIf="loading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Loading requests...</p>
-        </div>
-
-        <div *ngIf="!loading && filteredRequests.length === 0" class="empty-state">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          <p>No requests matching your filters.</p>
-          <button *ngIf="hasActiveFilters()" class="btn btn-ghost btn-sm" (click)="clearFilters()">Clear filters</button>
-          <button *ngIf="!hasActiveFilters() && isAdmin" class="btn btn-primary btn-sm" (click)="showCreate = true">
-            Create your first request
-          </button>
-        </div>
-
-        <table *ngIf="!loading && filteredRequests.length > 0" class="table">
+      <!-- ── Table View (Desktop) ── -->
+      <div *ngIf="!loading && filteredRequests.length > 0" class="table-container">
+        <table class="request-table">
           <thead>
             <tr>
               <th>PRIORITY</th>
               <th>TITLE</th>
-              <th>DESCRIPTION</th>
+              <th class="hide-mobile">DESCRIPTION</th>
               <th>STATUS</th>
-              <th>CREATED</th>
+              <th class="hide-mobile">CREATED</th>
               <th>DUE DATE</th>
-              <th>ASSIGNED AGENT</th>
-              <th *ngIf="isAdmin">ACTIONS</th>
+              <th class="hide-mobile">ASSIGNED</th>
+              <th *ngIf="isAdmin"></th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let r of filteredRequests"
                 [class.overdue-row]="isOverdue(r)"
                 (click)="navigateToDetail(r.id)"
-                style="cursor: pointer;"
                 class="request-row">
-              <td>
-                <span class="badge" [ngClass]="'priority-' + r.priority.toLowerCase()">{{ r.priority }}</span>
-              </td>
+              <td><span class="badge" [ngClass]="'priority-' + r.priority.toLowerCase()">{{ r.priority }}</span></td>
               <td>
                 <div class="req-title">{{ r.title }}</div>
                 <div *ngIf="r.tags?.length" class="req-tags">{{ r.tags!.join(', ') }}</div>
+                <!-- Mobile-only description -->
+                <div class="mobile-only desc-mobile">{{ r.description }}</div>
+                <div class="mobile-only agent-mobile" *ngIf="getAssignedAgentId(r) !== undefined">
+                  Agent: {{ agentName(getAssignedAgentId(r)!) }}
+                </div>
               </td>
-              <td class="desc-cell">{{ r.description }}</td>
+              <td class="hide-mobile desc-cell">{{ r.description }}</td>
               <td>
                 <span class="badge" [ngClass]="'status-' + r.status.toLowerCase().split(' ').join('-')">{{ r.status }}</span>
                 <span *ngIf="isOverdue(r)" class="overdue-tag">OVERDUE</span>
               </td>
-              <td class="date-cell">{{ r.createdAt | date:'MMM d, y' }}</td>
-              <td class="date-cell" [class.text-danger]="isOverdue(r)">{{ r.dueDate | date:'MMM d, y' }}</td>
-              <td>
-                <div *ngIf="r.assignedAgentId" class="agent-chip">
-                  <div class="avatar-sm">{{ agentInitials(r.assignedAgentId) }}</div>
-                  <span>{{ agentName(r.assignedAgentId) }}</span>
+              <td class="hide-mobile date-cell">{{ r.createdAt | date:'MMM d, y' }}</td>
+              <td class="date-cell" [class.text-danger]="isOverdue(r)">{{ r.dueDate | date:'MMM d' }}</td>
+              <td class="hide-mobile">
+                <div *ngIf="getAssignedAgentId(r) !== undefined" class="agent-chip">
+                  <div class="avatar-sm">{{ agentInitials(getAssignedAgentId(r)!) }}</div>
+                  <span>{{ agentName(getAssignedAgentId(r)!) }}</span>
                 </div>
-                <span *ngIf="!r.assignedAgentId" class="unassigned">Unassigned</span>
+                <span *ngIf="getAssignedAgentId(r) === undefined" class="unassigned">Unassigned</span>
               </td>
               <td *ngIf="isAdmin" (click)="$event.stopPropagation()">
                 <button class="btn-delete" (click)="confirmDelete($event, r)" title="Delete request">
@@ -216,11 +204,64 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
         </table>
       </div>
 
+      <!-- Card View (Mobile) - Alternative layout for very small screens -->
+      <div *ngIf="!loading && filteredRequests.length > 0" class="mobile-card-view">
+        <div *ngFor="let r of filteredRequests"
+             class="request-mobile-card"
+             [class.overdue-card]="isOverdue(r)"
+             (click)="navigateToDetail(r.id)">
+          <div class="card-header">
+            <span class="badge" [ngClass]="'priority-' + r.priority.toLowerCase()">{{ r.priority }}</span>
+            <span class="badge" [ngClass]="'status-' + r.status.toLowerCase().split(' ').join('-')">{{ r.status }}</span>
+            <span *ngIf="isOverdue(r)" class="overdue-tag">OVERDUE</span>
+          </div>
+          <h3 class="card-title">{{ r.title }}</h3>
+          <p class="card-desc">{{ r.description }}</p>
+          <div class="card-meta">
+            <span>Due: {{ r.dueDate | date:'MMM d, y' }}</span>
+            <span *ngIf="getAssignedAgentId(r) !== undefined">Agent: {{ agentName(getAssignedAgentId(r)!) }}</span>
+          </div>
+          <div *ngIf="r.tags?.length" class="card-tags">
+            {{ r.tags!.join(', ') }}
+          </div>
+          <div *ngIf="isAdmin" class="card-actions">
+            <button class="btn-delete" (click)="confirmDelete($event, r); $event.stopPropagation()" title="Delete request">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State - No requests at all -->
+      <div *ngIf="!loading && requests.length === 0" class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <p>No requests yet</p>
+        <button *ngIf="isAdmin" class="btn btn-primary" (click)="showCreate = true">
+          Create your first request
+        </button>
+      </div>
+
+      <!-- Empty State - No results after filtering -->
+      <div *ngIf="!loading && requests.length > 0 && filteredRequests.length === 0" class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p>No requests match your filters</p>
+        <button class="btn btn-primary" (click)="clearFilters()">Clear Filters</button>
+      </div>
+
       <!-- Delete Confirmation Modal -->
       <div *ngIf="deleteTarget" class="modal-overlay" (click)="cancelDelete()">
         <div class="modal" (click)="$event.stopPropagation()">
           <h3 class="modal-title">Delete Request</h3>
-          <p class="modal-text">Are you sure you want to delete <strong>{{ deleteTarget.title }}</strong>? This action cannot be undone.</p>
+          <p class="modal-text">Are you sure you want to delete <strong>{{ deleteTarget.title }}</strong>?</p>
           <div class="modal-actions">
             <button class="btn btn-danger" (click)="executeDelete()" [disabled]="deleting">
               {{ deleting ? 'Deleting…' : 'Delete' }}
@@ -233,36 +274,38 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
     </div>
   `,
   styles: [`
-    .requests-page { 
-      max-width: 1300px; 
+    .requests-container {
+      max-width: 1400px;
+      margin: 0 auto;
       background: #0a0f1c;
-      padding: 24px;
+      padding: 16px;
       border-radius: 16px;
+      min-height: calc(100vh - 120px);
     }
 
-    .page-header { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: flex-start; 
-      margin-bottom: 20px; 
+    /* Header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
     }
-    .page-title  { 
-      font-size: 1.6rem; 
-      font-weight: 700; 
-      color: #f1f5f9; 
-      margin-bottom: 4px; 
-      letter-spacing: -0.02em; 
+    .page-title {
+      font-size: clamp(1.4rem, 4vw, 1.8rem);
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
     }
-    .page-sub    { 
-      font-size: 0.8rem; 
-      color: #94a3b8; 
+    .page-sub {
+      font-size: 0.8rem;
+      color: #94a3b8;
     }
 
-    /* Success Message */
-    .alert-success { 
-      background: #132b1e; 
-      border-left: 4px solid #7c3aed; 
-      color: #e0e7ff; 
+    /* Alerts */
+    .alert {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -270,29 +313,26 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
       border-radius: 8px;
       margin-bottom: 20px;
       position: relative;
+      flex-wrap: wrap;
     }
-    .alert-success svg { 
-      color: #7c3aed; 
-      flex-shrink: 0; 
+    .alert-success {
+      background: #132b1e;
+      border-left: 4px solid #7c3aed;
+      color: #e0e7ff;
     }
-    
-    .alert-danger { 
-      background: #2d1a1c; 
-      border-left: 4px solid #7c3aed; 
-      color: #ffcdd2; 
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      position: relative;
+    .alert-success svg {
+      color: #7c3aed;
+      flex-shrink: 0;
     }
-    .alert-danger svg { 
-      color: #7c3aed; 
-      flex-shrink: 0; 
+    .alert-danger {
+      background: #2d1a1c;
+      border-left: 4px solid #7c3aed;
+      color: #ffcdd2;
     }
-    
+    .alert-danger svg {
+      color: #7c3aed;
+      flex-shrink: 0;
+    }
     .close-btn {
       position: absolute;
       right: 12px;
@@ -308,329 +348,16 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
       color: #f1f5f9;
     }
 
-    /* Create panel */
-    .create-panel {
-      background: #1a1f2e; 
-      border-radius: 12px; 
-      padding: 24px;
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1); 
-      margin-bottom: 20px;
-      border-top: 3px solid #7c3aed;
-      border: 1px solid #2d2f3e;
-    }
-    .form-title { 
-      font-size: 1rem; 
-      font-weight: 700; 
-      color: #f1f5f9; 
-      margin-bottom: 18px; 
-    }
-    .form-grid  { 
-      display: grid; 
-      grid-template-columns: 1fr 1fr; 
-      gap: 14px 20px; 
-      margin-bottom: 16px; 
-    }
-    .span-2     { 
-      grid-column: span 2; 
-    }
-    .form-group { 
-      display: flex; 
-      flex-direction: column; 
-      gap: 5px; 
-    }
-    .form-label { 
-      font-size: 0.78rem; 
-      font-weight: 600; 
-      color: #e2e8f0; 
-    }
-    .required   { 
-      color: #ff6b6b; 
-    }
-    .hint       { 
-      color: #94a3b8; 
-      font-weight: 400; 
-    }
-    .form-error { 
-      color: #ff8a8a; 
-      font-size: 0.8rem; 
-      background: #2d1a1c; 
-      padding: 8px 12px; 
-      border-radius: 6px; 
-      margin-bottom: 12px; 
-      border-left: 3px solid #7c3aed;
-    }
-    .form-actions { 
-      display: flex; 
-      gap: 10px; 
-    }
-
-    .form-control {
-      width: 100%; 
-      padding: 8px 12px; 
-      border: 1px solid #2d2f3e; 
-      border-radius: 7px;
-      font-size: 0.875rem; 
-      color: #f1f5f9; 
-      outline: none; 
-      font-family: inherit;
-      background: #0a0f1c; 
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .form-control:focus { 
-      border-color: #7c3aed; 
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2); 
-    }
-    textarea.form-control { 
-      resize: vertical; 
-    }
-
-    /* Filters */
-    .filters-bar { 
-      display: flex; 
-      gap: 10px; 
-      flex-wrap: wrap; 
-      align-items: center; 
-      margin-bottom: 16px; 
-    }
-    .search-wrap { 
-      position: relative; 
-      flex: 1; 
-      min-width: 220px; 
-    }
-    .search-icon { 
-      position: absolute; 
-      left: 10px; 
-      top: 50%; 
-      transform: translateY(-50%); 
-      pointer-events: none; 
-    }
-    .search-input {
-      width: 100%; 
-      padding: 8px 12px 8px 32px; 
-      border: 1px solid #2d2f3e;
-      border-radius: 7px; 
-      font-size: 0.85rem; 
-      outline: none; 
-      font-family: inherit; 
-      background: #0a0f1c;
-      color: #f1f5f9;
-    }
-    .search-input:focus { 
-      border-color: #7c3aed; 
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2); 
-    }
-    .filter-select {
-      padding: 8px 12px; 
-      border: 1px solid #2d2f3e; 
-      border-radius: 7px;
-      font-size: 0.82rem; 
-      outline: none; 
-      font-family: inherit; 
-      background: #0a0f1c; 
-      color: #f1f5f9; 
-      cursor: pointer;
-    }
-    .filter-select option {
-      background: #0a0f1c;
-      color: #f1f5f9;
-    }
-    .filter-select:focus { 
-      border-color: #7c3aed; 
-    }
-    .filter-toggle {
-      padding: 8px 14px; 
-      border: 1px solid #2d2f3e; 
-      border-radius: 7px;
-      font-size: 0.82rem; 
-      font-weight: 500; 
-      cursor: pointer; 
-      background: #0a0f1c;
-      color: #94a3b8; 
-      transition: all 0.15s; 
-      font-family: inherit;
-    }
-    .filter-active { 
-      background: #7c3aed; 
-      border-color: #7c3aed; 
-      color: white; 
-      font-weight: 600; 
-    }
-    .btn-clear { 
-      background: none; 
-      border: none; 
-      font-size: 0.8rem; 
-      color: #94a3b8; 
-      cursor: pointer; 
-      font-family: inherit; 
-      padding: 0; 
-    }
-    .btn-clear:hover { 
-      color: #ff6b6b; 
-    }
-
-    /* Panel & Table */
-    .panel { 
-      background: #1a1f2e; 
-      border-radius: 12px; 
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1); 
-      overflow: hidden; 
-      min-height: 200px;
-      border: 1px solid #2d2f3e;
-    }
-    .table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      font-size: 0.82rem; 
-    }
-    .table th {
-      text-align: left; 
-      padding: 10px 14px;
-      font-size: 0.65rem; 
-      font-weight: 700; 
-      color: #94a3b8;
-      letter-spacing: 0.07em; 
-      text-transform: uppercase; 
-      border-bottom: 1px solid #2d2f3e;
-    }
-    .table td { 
-      padding: 13px 14px; 
-      border-bottom: 1px solid #2d2f3e; 
-      color: #e2e8f0; 
-      vertical-align: middle; 
-    }
-    .request-row:hover td { 
-      background: #2d2f3e; 
-    }
-    .table tbody tr:last-child td { 
-      border-bottom: none; 
-    }
-    .overdue-row td { 
-      background: #2d1a1c; 
-    }
-    .overdue-row:hover td { 
-      background: #3a1e20 !important; 
-    }
-
-    .req-title  { 
-      font-weight: 600; 
-      color: #f1f5f9; 
-    }
-    .req-tags   { 
-      font-size: 0.72rem; 
-      color: #94a3b8; 
-      margin-top: 2px; 
-    }
-    .desc-cell  { 
-      color: #94a3b8; 
-      max-width: 240px; 
-      white-space: nowrap; 
-      overflow: hidden; 
-      text-overflow: ellipsis; 
-    }
-    .date-cell  { 
-      color: #94a3b8; 
-      white-space: nowrap; 
-    }
-    .text-danger { 
-      color: #ff6b6b !important; 
-      font-weight: 600; 
-    }
-    .agent-chip { 
-      display: flex; 
-      align-items: center; 
-      gap: 6px; 
-      font-size: 0.8rem; 
-      color: #e2e8f0; 
-    }
-    .avatar-sm  { 
-      width: 24px; 
-      height: 24px; 
-      border-radius: 50%; 
-      background: #4f46e5; 
-      color: white; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      font-size: 0.6rem; 
-      font-weight: 700; 
-      flex-shrink: 0; 
-    }
-    .unassigned { 
-      color: #94a3b8; 
-      font-style: italic; 
-      font-size: 0.8rem; 
-    }
-
-    .badge { 
-      display: inline-block; 
-      padding: 2px 8px; 
-      border-radius: 999px; 
-      font-size: 0.68rem; 
-      font-weight: 700; 
-      white-space: nowrap; 
-    }
-    .priority-critical { 
-      background: #2d1a1c; 
-      color: #ff8a8a; 
-      border: 1px solid #7c3aed;
-    }
-    .priority-high     { 
-      background: #2d1a1c; 
-      color: #ffb3b3; 
-      border: 1px solid #7c3aed;
-    }
-    .priority-medium   { 
-      background: #2d2f3e; 
-      color: #a78bfa; 
-      border: 1px solid #7c3aed;
-    }
-    .priority-low      { 
-      background: #132b1e; 
-      color: #86efac; 
-      border: 1px solid #7c3aed;
-    }
-    .status-open        { 
-      background: #1e293b; 
-      color: #a78bfa; 
-      border: 1px solid #7c3aed;
-    }
-    .status-in-progress { 
-      background: #1e293b; 
-      color: #c4b5fd; 
-      border: 1px solid #7c3aed;
-    }
-    .status-blocked     { 
-      background: #2d1a1c; 
-      color: #ffb3b3; 
-      border: 1px solid #7c3aed;
-    }
-    .status-done        { 
-      background: #132b1e; 
-      color: #86efac; 
-      border: 1px solid #7c3aed;
-    }
-    .overdue-tag { 
-      display: inline-block; 
-      margin-left: 4px; 
-      padding: 1px 6px; 
-      background: #7c3aed; 
-      color: white; 
-      border-radius: 999px; 
-      font-size: 0.65rem; 
-      font-weight: 700; 
-    }
-
-    .loading-state, .empty-state { 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
+    /* Loading State */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      padding: 48px; 
-      color: #94a3b8; 
-      gap: 16px; 
-      font-size: 0.875rem; 
+      padding: 60px;
+      color: #94a3b8;
+      gap: 16px;
     }
-    
     .spinner {
       width: 40px;
       height: 40px;
@@ -639,122 +366,530 @@ import { Request, User, Status, Priority, isOverdue } from '../models';
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
-    
-    @keyframes spin { 
-      to { transform: rotate(360deg); } 
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
-    .btn { 
-      display: inline-flex; 
-      align-items: center; 
-      gap: 6px; 
-      padding: 9px 18px; 
-      border-radius: 7px; 
-      border: none; 
-      font-size: 0.82rem; 
-      font-weight: 600; 
-      cursor: pointer; 
-      transition: all 0.15s; 
-      font-family: inherit; 
+    /* Create Panel */
+    .create-panel {
+      background: #1a1f2e;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 1px solid #2d2f3e;
+      border-top: 3px solid #7c3aed;
     }
-    .btn-primary { 
-      background: #7c3aed; 
-      color: white; 
+    .form-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 16px;
     }
-    .btn-primary:hover { 
-      background: #6d28d9; 
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
     }
-    .btn-ghost { 
-      background: transparent; 
-      color: #e2e8f0; 
-      border: 1px solid #2d2f3e; 
+    .span-2 {
+      grid-column: span 2;
     }
-    .btn-ghost:hover { 
-      background: #2d2f3e; 
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-    .btn-danger { 
-      background: #7c3aed; 
-      color: white; 
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #e2e8f0;
     }
-    .btn-danger:hover { 
-      background: #6d28d9; 
+    .required {
+      color: #ff6b6b;
     }
-    .btn-sm { 
-      padding: 6px 14px; 
-      font-size: 0.78rem; 
+    .hint {
+      font-size: 0.7rem;
+      color: #94a3b8;
     }
-    .btn:disabled { 
-      opacity: 0.45; 
-      cursor: not-allowed; 
+    .form-control {
+      padding: 8px 12px;
+      border: 1px solid #2d2f3e;
+      border-radius: 7px;
+      background: #0a0f1c;
+      color: #f1f5f9;
+      font-size: 0.875rem;
+    }
+    .form-control:focus {
+      border-color: #7c3aed;
+      outline: none;
+    }
+    .form-error {
+      color: #ff8a8a;
+      background: #2d1a1c;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      border-left: 3px solid #7c3aed;
+    }
+    .form-actions {
+      display: flex;
+      gap: 10px;
     }
 
-    .btn-delete {
-      padding: 6px; 
-      border: none; 
-      background: #2d1a1c; 
-      color: #ff8a8a; 
-      border-radius: 6px; 
-      cursor: pointer; 
-      display: inline-flex; 
+    /* Filters */
+    .filters-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
       align-items: center;
-      justify-content: center; 
-      transition: all 0.15s;
+      margin-bottom: 20px;
+    }
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+    }
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .search-input {
+      width: 100%;
+      padding: 8px 12px 8px 32px;
+      border: 1px solid #2d2f3e;
+      border-radius: 7px;
+      background: #0a0f1c;
+      color: #f1f5f9;
+    }
+    .search-input:focus {
+      border-color: #7c3aed;
+      outline: none;
+    }
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid #2d2f3e;
+      border-radius: 7px;
+      background: #0a0f1c;
+      color: #f1f5f9;
+      min-width: 120px;
+    }
+    .filter-select option {
+      background: #0a0f1c;
+      color: #f1f5f9;
+    }
+    .filter-select:focus {
+      border-color: #7c3aed;
+      outline: none;
+    }
+    .filter-toggle {
+      padding: 8px 14px;
+      border: 1px solid #2d2f3e;
+      border-radius: 7px;
+      background: #0a0f1c;
+      color: #94a3b8;
+      cursor: pointer;
+    }
+    .filter-toggle:hover {
+      background: #2d2f3e;
+    }
+    .filter-active {
+      background: #7c3aed;
+      color: white;
+      border-color: #7c3aed;
+    }
+    .btn-clear {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .btn-clear:hover {
+      color: #ff6b6b;
+    }
+
+    /* Table */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid #2d2f3e;
+      background: #1a1f2e;
+    }
+    .request-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      min-width: 800px;
+    }
+    .request-table th {
+      text-align: left;
+      padding: 12px 16px;
+      background: #1a1f2e;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      border-bottom: 1px solid #2d2f3e;
+    }
+    .request-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #2d2f3e;
+      color: #e2e8f0;
+    }
+    .request-row {
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .request-row:hover td {
+      background: #2d2f3e;
+    }
+    .overdue-row td {
+      background: #2d1a1c;
+    }
+    .overdue-row:hover td {
+      background: #3a1e20 !important;
+    }
+
+    /* Table Cell Styles */
+    .req-title {
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .req-tags {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .desc-cell {
+      max-width: 250px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #94a3b8;
+    }
+    .date-cell {
+      white-space: nowrap;
+      color: #94a3b8;
+    }
+    .text-danger {
+      color: #ff6b6b !important;
+    }
+
+    /* Agent Chip */
+    .agent-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .avatar-sm {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #4f46e5;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .unassigned {
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .priority-critical {
+      background: #2d1a1c;
+      color: #ff8a8a;
       border: 1px solid #7c3aed;
     }
-    .btn-delete:hover { 
-      background: #3a1e20; 
-      color: #ffb3b3; 
+    .priority-high {
+      background: #2d1a1c;
+      color: #ffb3b3;
+      border: 1px solid #7c3aed;
+    }
+    .priority-medium {
+      background: #2d2f3e;
+      color: #a78bfa;
+      border: 1px solid #7c3aed;
+    }
+    .priority-low {
+      background: #132b1e;
+      color: #86efac;
+      border: 1px solid #7c3aed;
+    }
+    .status-open {
+      background: #1e293b;
+      color: #a78bfa;
+      border: 1px solid #7c3aed;
+    }
+    .status-in-progress {
+      background: #1e293b;
+      color: #c4b5fd;
+      border: 1px solid #7c3aed;
+    }
+    .status-blocked {
+      background: #2d1a1c;
+      color: #ffb3b3;
+      border: 1px solid #7c3aed;
+    }
+    .status-done {
+      background: #132b1e;
+      color: #86efac;
+      border: 1px solid #7c3aed;
+    }
+    .overdue-tag {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 2px 6px;
+      background: #7c3aed;
+      color: white;
+      border-radius: 999px;
+      font-size: 0.6rem;
+      font-weight: 700;
+    }
+
+    /* Delete Button */
+    .btn-delete {
+      padding: 6px;
+      border: none;
+      background: #2d1a1c;
+      color: #ff8a8a;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #7c3aed;
+    }
+    .btn-delete:hover {
+      background: #3a1e20;
+    }
+
+    /* Mobile Card View */
+    .mobile-card-view {
+      display: none;
+    }
+    .mobile-only {
+      display: none;
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: #94a3b8;
+      gap: 16px;
+      text-align: center;
     }
 
     /* Modal */
     .modal-overlay {
-      position: fixed; 
-      top: 0; 
-      left: 0; 
-      right: 0; 
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.7); 
-      display: flex; 
-      align-items: center; 
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
       justify-content: center;
-      z-index: 1000; 
-      animation: fadeIn 0.15s;
+      z-index: 1000;
       backdrop-filter: blur(4px);
     }
     .modal {
-      background: #1a1f2e; 
-      border-radius: 12px; 
+      background: #1a1f2e;
+      border-radius: 12px;
       padding: 24px;
-      max-width: 450px; 
-      width: 90%; 
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
-      animation: slideUp 0.2s;
+      max-width: 400px;
+      width: 90%;
       border: 1px solid #7c3aed;
     }
-    .modal-title { 
-      font-size: 1.1rem; 
-      font-weight: 700; 
-      color: #f1f5f9; 
-      margin-bottom: 12px; 
+    .modal-title {
+      font-size: 1.2rem;
+      color: #f1f5f9;
+      margin-bottom: 12px;
     }
-    .modal-text { 
-      font-size: 0.875rem; 
-      color: #94a3b8; 
-      margin-bottom: 20px; 
-      line-height: 1.6; 
+    .modal-text {
+      color: #94a3b8;
+      margin-bottom: 20px;
     }
-    .modal-actions { 
-      display: flex; 
-      gap: 10px; 
-      justify-content: flex-end; 
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
     }
-    @keyframes fadeIn { 
-      from { opacity: 0; } 
-      to { opacity: 1; } 
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
     }
-    @keyframes slideUp { 
-      from { opacity: 0; transform: translateY(20px); } 
-      to { opacity: 1; transform: translateY(0); } 
+    .btn-primary {
+      background: #7c3aed;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #6d28d9;
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: #e2e8f0;
+      border: 1px solid #2d2f3e;
+    }
+    .btn-ghost:hover {
+      background: #2d2f3e;
+    }
+    .btn-danger {
+      background: #7c3aed;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #6d28d9;
+    }
+    .btn-danger:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1024px) {
+      .hide-mobile {
+        display: none;
+      }
+      .mobile-only {
+        display: block;
+      }
+      .desc-mobile {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        margin-top: 4px;
+      }
+      .agent-mobile {
+        font-size: 0.7rem;
+        color: #a78bfa;
+        margin-top: 2px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .requests-container {
+        padding: 12px;
+      }
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .span-2 {
+        grid-column: span 1;
+      }
+      .filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .search-wrap {
+        width: 100%;
+      }
+      .filter-select, .filter-toggle {
+        width: 100%;
+      }
+      .table-container {
+        display: none;
+      }
+      .mobile-card-view {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .request-mobile-card {
+        background: #1a1f2e;
+        border: 1px solid #2d2f3e;
+        border-radius: 12px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .request-mobile-card:hover {
+        border-color: #7c3aed;
+      }
+      .overdue-card {
+        border-color: #7c3aed;
+        background: #2d1a1c;
+      }
+      .card-header {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #f1f5f9;
+        margin-bottom: 6px;
+      }
+      .card-desc {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        margin-bottom: 10px;
+      }
+      .card-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: #94a3b8;
+        margin-bottom: 8px;
+      }
+      .card-tags {
+        font-size: 0.7rem;
+        color: #a78bfa;
+      }
+      .card-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .requests-container {
+        padding: 8px;
+      }
+      .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .btn {
+        width: 100%;
+      }
+      .modal {
+        width: 95%;
+        padding: 16px;
+      }
     }
   `]
 })
@@ -784,15 +919,7 @@ export class RequestListComponent implements OnInit, OnDestroy {
     overdueOnly: false 
   };
   
-  form: { 
-    title: string; 
-    description: string; 
-    status: Status; 
-    priority: Priority; 
-    dueDate: string; 
-    agentId: string; 
-    tags: string 
-  } = {
+  form: any = {
     title: '', 
     description: '', 
     status: 'Open',
@@ -816,30 +943,37 @@ export class RequestListComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
+    console.log('Request List loading data...');
     this.loading = true;
     this.errorMessage = '';
     
-    this.api.getRequests().subscribe({ 
-      next: r => { 
-        this.requests = r; 
+    this.api.getRequests().subscribe({
+      next: (r) => {
+        this.requests = r;
         this.applyFilters();
-        this.loading = false; 
-      },
-      error: (err) => { 
         this.loading = false;
+        console.log('Request List - Requests loaded:', r.length);
+      },
+      error: (err) => {
+        console.error('Request List - Error loading requests:', err);
         this.errorMessage = 'Failed to load requests. Please try again.';
-        console.error('Error loading requests:', err);
+        this.loading = false;
+        this.requests = [];
       }
     });
-    
-    this.api.getAgents().subscribe({ 
-      next: a => this.agents = a, 
-      error: (err) => console.error('Error loading agents:', err)
+
+    this.api.getAgents().subscribe({
+      next: (a) => {
+        this.agents = a;
+        console.log('Request List - Agents loaded:', a.length);
+      },
+      error: (err) => {
+        console.error('Request List - Error loading agents:', err);
+      }
     });
   }
 
   startRealTimeUpdates(): void {
-    // Poll for updates every 10 seconds
     this.refreshSubscription = interval(10000).pipe(
       switchMap(() => this.api.getRequests())
     ).subscribe({
@@ -857,40 +991,26 @@ export class RequestListComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ── Helper method to safely get assignedAgentId ───────────────────────────
+  getAssignedAgentId(request: Request): string | undefined {
+    return request.assignedAgentId;
+  }
+
   applyFilters(): void {
     const s = this.filters.search.toLowerCase();
     let result = this.requests.filter(r => {
-      // Search filter
       if (s && !r.title.toLowerCase().includes(s)
              && !r.description.toLowerCase().includes(s)
              && !(r.tags ?? []).some(t => t.toLowerCase().includes(s))) {
         return false;
       }
-      
-      // Status filter
-      if (this.filters.status && r.status !== this.filters.status) {
-        return false;
-      }
-      
-      // Priority filter
-      if (this.filters.priority && r.priority !== this.filters.priority) {
-        return false;
-      }
-      
-      // Agent filter (Admin only)
-      if (this.filters.agent && r.assignedAgentId !== this.filters.agent) {
-        return false;
-      }
-      
-      // Overdue filter
-      if (this.filters.overdueOnly && !this.isOverdue(r)) {
-        return false;
-      }
-      
+      if (this.filters.status && r.status !== this.filters.status) return false;
+      if (this.filters.priority && r.priority !== this.filters.priority) return false;
+      if (this.filters.agent && r.assignedAgentId !== this.filters.agent) return false;
+      if (this.filters.overdueOnly && !this.isOverdue(r)) return false;
       return true;
     });
 
-    // Sort
     result = result.sort((a, b) => {
       if (this.sortBy === 'priority') {
         const priorityOrder = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
@@ -911,11 +1031,8 @@ export class RequestListComponent implements OnInit, OnDestroy {
   }
 
   hasActiveFilters(): boolean {
-    return !!(this.filters.search || 
-              this.filters.status || 
-              this.filters.priority || 
-              this.filters.agent || 
-              this.filters.overdueOnly);
+    return !!(this.filters.search || this.filters.status || 
+              this.filters.priority || this.filters.agent || this.filters.overdueOnly);
   }
 
   clearFilters(): void {
@@ -927,12 +1044,14 @@ export class RequestListComponent implements OnInit, OnDestroy {
     return isOverdue(r);
   }
 
-  agentName(id: string): string { 
-    return this.agents.find(a => a.id === id)?.name ?? id; 
+  agentName(id: string): string {
+    const agent = this.agents.find(a => a.id === id);
+    return agent ? agent.name : id;
   }
-  
+
   agentInitials(id: string): string {
-    return this.agentName(id).split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+    const name = this.agentName(id);
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   }
 
   navigateToDetail(id: string): void {
@@ -940,23 +1059,23 @@ export class RequestListComponent implements OnInit, OnDestroy {
   }
 
   createRequest(): void {
-    if (!this.form.title.trim())       { 
-      this.createError = 'Title is required.';       
-      return; 
+    if (!this.form.title.trim()) {
+      this.createError = 'Title is required.';
+      return;
     }
-    if (!this.form.description.trim()) { 
-      this.createError = 'Description is required.'; 
-      return; 
+    if (!this.form.description.trim()) {
+      this.createError = 'Description is required.';
+      return;
     }
-    if (!this.form.dueDate)            { 
-      this.createError = 'Due date is required.';    
-      return; 
+    if (!this.form.dueDate) {
+      this.createError = 'Due date is required.';
+      return;
     }
-    
+
     this.createError = '';
     this.creating = true;
 
-    const tags = this.form.tags ? this.form.tags.split(',').map(t => t.trim()).filter(t => t) : undefined;
+    const tags = this.form.tags ? this.form.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t) : undefined;
 
     this.api.createRequest({
       title: this.form.title.trim(),
@@ -969,22 +1088,9 @@ export class RequestListComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (created: any) => {
         this.successMessage = 'Request created successfully!';
-        
-        if (this.form.agentId && created?.id) {
-          this.api.assignRequest(created.id, this.form.agentId).subscribe({
-            next:  () => {
-              this.reload();
-              this.successMessage = 'Request created and assigned successfully!';
-            },
-            error: () => this.reload()
-          });
-        } else {
-          this.reload();
-        }
-        
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 5000);
+        this.loadData();
+        this.cancelCreate();
+        setTimeout(() => this.successMessage = '', 3000);
       },
       error: (err) => {
         this.createError = 'Failed to create request. Please try again.';
@@ -997,19 +1103,14 @@ export class RequestListComponent implements OnInit, OnDestroy {
   cancelCreate(): void {
     this.showCreate = false;
     this.createError = '';
-    this.form = { 
-      title: '', 
-      description: '', 
-      status: 'Open',
-      priority: 'Medium', 
-      dueDate: '', 
-      agentId: '', 
-      tags: '' 
+    this.form = {
+      title: '', description: '', status: 'Open',
+      priority: 'Medium', dueDate: '', agentId: '', tags: ''
     };
   }
 
   confirmDelete(event: Event, request: Request): void {
-    event.stopPropagation(); // Prevent row click
+    event.stopPropagation();
     this.deleteTarget = request;
   }
 
@@ -1022,42 +1123,18 @@ export class RequestListComponent implements OnInit, OnDestroy {
     if (!this.deleteTarget) return;
     
     this.deleting = true;
-    
     this.api.deleteRequest(this.deleteTarget.id).subscribe({
       next: () => {
         this.requests = this.requests.filter(r => r.id !== this.deleteTarget!.id);
         this.applyFilters();
-        this.successMessage = `Request "${this.deleteTarget!.title}" deleted successfully.`;
+        this.successMessage = 'Request deleted successfully.';
         this.cancelDelete();
-        
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 5000);
+        setTimeout(() => this.successMessage = '', 3000);
       },
       error: (err) => {
         this.deleting = false;
         this.errorMessage = 'Failed to delete request. Please try again.';
         console.error('Error deleting request:', err);
-      }
-    });
-  }
-
-  private reload(): void {
-    this.api.getRequests().subscribe({
-      next: r => {
-        this.requests = r;
-        this.applyFilters();
-        this.creating = false;
-        this.showCreate = false;
-        this.form = { 
-          title: '', 
-          description: '', 
-          status: 'Open',
-          priority: 'Medium', 
-          dueDate: '', 
-          agentId: '', 
-          tags: '' 
-        };
       }
     });
   }

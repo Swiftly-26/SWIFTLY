@@ -1,4 +1,3 @@
-// frontend/src/app/layout/header.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../services/api.service';
@@ -11,17 +10,13 @@ import { Router } from '@angular/router';
   imports: [CommonModule],
   template: `
     <header class="header">
-      <!-- Page title slot (empty — each page has its own h1) -->
       <div class="header-left"></div>
-
-      <!-- Right side: user info + role switcher dropdown -->
       <div class="header-right">
         <div class="user-info">
           <span class="user-name">{{ currentUser.name }}</span>
           <span class="user-role">{{ currentUser.role }}</span>
         </div>
-
-        <!-- Role switcher dropdown - ALWAYS VISIBLE to users with Admin privilege -->
+        
         <div *ngIf="isAdminUser" class="dropdown">
           <button class="dropdown-btn" (click)="toggleDropdown($event)">
             <span>Switch Role</span>
@@ -29,11 +24,11 @@ import { Router } from '@angular/router';
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
-
+          
           <div *ngIf="dropdownOpen" class="dropdown-menu">
             <div class="dropdown-header">Select Role</div>
-            <button
-              class="dropdown-item"
+            <button 
+              class="dropdown-item" 
               [class.active]="currentUser.role === 'Admin'"
               (click)="switchToAdmin()">
               <span class="item-icon">
@@ -52,9 +47,9 @@ import { Router } from '@angular/router';
                 </svg>
               </span>
             </button>
-
-            <button
-              class="dropdown-item"
+            
+            <button 
+              class="dropdown-item" 
               [class.active]="currentUser.role === 'Agent'"
               (click)="switchToAgent()">
               <span class="item-icon">
@@ -75,15 +70,13 @@ import { Router } from '@angular/router';
             </button>
           </div>
         </div>
-
-        <!-- Simple role badge for regular Agent users (never been Admin) -->
+        
         <div *ngIf="!isAdminUser" class="role-badge">
           {{ currentUser.role }}
         </div>
       </div>
     </header>
-
-    <!-- Dropdown backdrop -->
+    
     <div *ngIf="dropdownOpen" class="dropdown-backdrop" (click)="closeDropdown()"></div>
   `,
   styles: [`
@@ -111,13 +104,13 @@ import { Router } from '@angular/router';
       align-items: flex-end;
       line-height: 1.3;
     }
-
+    
     .user-name {
       font-size: 0.875rem;
       font-weight: 600;
       color: #f1f5f9;
     }
-
+    
     .user-role {
       font-size: 0.7rem;
       color: #94a3b8;
@@ -125,7 +118,6 @@ import { Router } from '@angular/router';
       letter-spacing: 0.05em;
     }
 
-    /* Role badge for non-admin */
     .role-badge {
       padding: 4px 12px;
       background: #7c3aed;
@@ -137,7 +129,6 @@ import { Router } from '@angular/router';
       letter-spacing: 0.05em;
     }
 
-    /* Dropdown styles */
     .dropdown {
       position: relative;
       display: inline-block;
@@ -158,17 +149,9 @@ import { Router } from '@angular/router';
       transition: all 0.15s;
       white-space: nowrap;
     }
-
+    
     .dropdown-btn:hover {
       background: #6d28d9;
-    }
-
-    .dropdown-btn svg {
-      transition: transform 0.2s;
-    }
-
-    .dropdown-btn:hover svg {
-      transform: translateY(2px);
     }
 
     .dropdown-menu {
@@ -209,15 +192,15 @@ import { Router } from '@angular/router';
       transition: all 0.15s;
       border-bottom: 1px solid #2d2f3e;
     }
-
+    
     .dropdown-item:last-child {
       border-bottom: none;
     }
-
+    
     .dropdown-item:hover {
       background: #2d2f3e;
     }
-
+    
     .dropdown-item.active {
       background: #7c3aed;
     }
@@ -233,7 +216,7 @@ import { Router } from '@angular/router';
       color: #a78bfa;
       flex-shrink: 0;
     }
-
+    
     .dropdown-item.active .item-icon {
       background: white;
       color: #7c3aed;
@@ -245,18 +228,18 @@ import { Router } from '@angular/router';
       flex-direction: column;
       gap: 2px;
     }
-
+    
     .item-title {
       font-size: 0.875rem;
       font-weight: 600;
       color: #f1f5f9;
     }
-
+    
     .item-desc {
       font-size: 0.7rem;
       color: #94a3b8;
     }
-
+    
     .dropdown-item.active .item-desc {
       color: #e2e8f0;
     }
@@ -322,13 +305,13 @@ export class HeaderComponent implements OnInit {
       this.closeDropdown();
       return;
     }
-
+    
     const adminUser: User = {
       id: 'admin-1',
       name: 'System Admin',
       role: 'Admin'
     };
-
+    
     this.updateUserRole(adminUser);
   }
 
@@ -337,13 +320,13 @@ export class HeaderComponent implements OnInit {
       this.closeDropdown();
       return;
     }
-
+    
     const agentUser: User = {
       id: 'admin-1',
       name: 'John Doe',
       role: 'Agent'
     };
-
+    
     this.updateUserRole(agentUser);
   }
 
@@ -352,8 +335,7 @@ export class HeaderComponent implements OnInit {
     this.currentUser = user;
     this.isAdminUser = true;
     this.closeDropdown();
-
-    // Reload the current page to reflect the new role
+    
     this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
       this.router.navigate([this.router.url]);
     });

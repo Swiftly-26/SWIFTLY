@@ -19,7 +19,7 @@ export interface Request {
   status: Status;
   priority: Priority;
   dueDate: string; // ISO string
-  assignedAgentId?: string; // optional, can be unassigned
+  assignedAgentId?: string; // optional, can be unassigned (undefined, not null)
   tags?: string[]; // optional tags for categorization
   createdAt: string; // ISO string
   updatedAt: string; // ISO string

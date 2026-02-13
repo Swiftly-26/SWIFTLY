@@ -1,8 +1,8 @@
 // frontend/src/app/services/api.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, tap, retry } from 'rxjs/operators';
 import {
   Request,
   Comment,
@@ -19,24 +19,18 @@ export class ApiService {
 
   private baseUrl = 'http://localhost:3000/api';
 
-  // Simulated logged-in user (replace later with JWT auth)
   private currentUser: User = {
     id: 'admin-1',
     name: 'System Admin',
     role: 'Admin' as Role
   };
 
-  // Cache for agents
-  private agentsCache: User[] = [];
-  private requestsCache: Request[] = [];
-
-  constructor(private http: HttpClient) {}
-
-  // =========================
-  // 🔐 ROLE MANAGEMENT
-  // =========================
+  constructor(private http: HttpClient) {
+    console.log('API Service initialized with baseUrl:', this.baseUrl);
+  }
 
   setUser(user: User) {
+    console.log('Setting user:', user);
     this.currentUser = user;
   }
 
@@ -44,29 +38,42 @@ export class ApiService {
     return this.currentUser;
   }
 
-  private getHeaders(): HttpHeaders {
-    return new HttpHeaders({
-      'x-user-id': this.currentUser.id,
-      'x-user-role': this.currentUser.role,
-      'Content-Type': 'application/json'
-    });
-  }
-
-  // =========================
-  // 📌 REQUESTS
-  // =========================
-
-  getRequests(): Observable<Request[]> {
-    // Return cached data immediately if available
-    if (this.requestsCache.length > 0) {
-      return of(this.requestsCache);
+  private handleError(error: HttpErrorResponse) {
+    console.error('API Error:', error);
+    
+    let errorMessage = 'An error occurred';
+    if (error.error instanceof ErrorEvent) {
+      errorMessage = `Client Error: ${error.error.message}`;
+    } else {
+      errorMessage = `Server Error: ${error.status} - ${error.message}`;
     }
     
+    return throwError(() => new Error(errorMessage));
+  }
+
+  getRequests(): Observable<Request[]> {
+    console.log('Fetching requests from:', `${this.baseUrl}/requests`);
+    
     return this.http.get<Request[]>(
-      `${this.baseUrl}/requests`,
-      { headers: this.getHeaders() }
+      `${this.baseUrl}/requests`
     ).pipe(
-      tap(requests => this.requestsCache = requests),
+      retry(1),
+      tap(requests => {
+        console.log('Requests fetched successfully:', requests);
+        requests.forEach(r => {
+          if (r.tags && typeof r.tags === 'string') {
+            try {
+              r.tags = JSON.parse(r.tags);
+            } catch (e) {
+              r.tags = (r.tags as unknown as string).split(',').map(t => t.trim());
+            }
+          }
+          // Ensure assignedAgentId is undefined, not null
+          if (r.assignedAgentId === null) {
+            r.assignedAgentId = undefined;
+          }
+        });
+      }),
       catchError(error => {
         console.error('Error fetching requests:', error);
         return of([]);
@@ -75,20 +82,28 @@ export class ApiService {
   }
 
   getRequestById(id: string): Observable<Request> {
+    console.log('Fetching request by ID:', id);
+    
     return this.http.get<Request>(
-      `${this.baseUrl}/requests/${id}`,
-      { headers: this.getHeaders() }
+      `${this.baseUrl}/requests/${id}`
     ).pipe(
       tap(request => {
-        // Update cache
-        const index = this.requestsCache.findIndex(r => r.id === id);
-        if (index !== -1) {
-          this.requestsCache[index] = request;
+        console.log('Request fetched successfully:', request);
+        if (request.tags && typeof request.tags === 'string') {
+          try {
+            request.tags = JSON.parse(request.tags);
+          } catch (e) {
+            request.tags = (request.tags as unknown as string).split(',').map(t => t.trim());
+          }
+        }
+        // Ensure assignedAgentId is undefined, not null
+        if (request.assignedAgentId === null) {
+          request.assignedAgentId = undefined;
         }
       }),
       catchError(error => {
         console.error(`Error fetching request ${id}:`, error);
-        throw error;
+        return throwError(() => new Error(error.message));
       })
     );
   }
@@ -102,95 +117,85 @@ export class ApiService {
     assignedAgentId?: string;
     tags?: string[];
   }): Observable<any> {
+    console.log('Creating request with data:', data);
+    
+    // Convert undefined to null for the backend, but keep as undefined for our model
+    const payload = {
+      ...data,
+      status: data.status || 'Open',
+      assignedAgentId: data.assignedAgentId || undefined, // Use undefined, not null
+      tags: data.tags ? JSON.stringify(data.tags) : null
+    };
+    
     return this.http.post(
       `${this.baseUrl}/requests`,
-      {
-        ...data,
-        status: data.status || 'Open'
-      },
-      { headers: this.getHeaders() }
+      payload
     ).pipe(
       tap((newRequest: any) => {
-        // Update cache
-        this.requestsCache = [newRequest, ...this.requestsCache];
+        console.log('Request created successfully:', newRequest);
+        if (newRequest.assignedAgentId === null) {
+          newRequest.assignedAgentId = undefined;
+        }
       }),
-      catchError(error => {
-        console.error('Error creating request:', error);
-        throw error;
-      })
+      catchError(this.handleError)
     );
   }
 
   updateStatus(id: string, status: Status): Observable<any> {
+    console.log('Updating status for request:', id, 'to:', status);
+    
     return this.http.put(
       `${this.baseUrl}/requests/${id}/status`,
-      {
-        status,
-        user: this.currentUser.name
-      },
-      { headers: this.getHeaders() }
+      { status, user: this.currentUser.name }
     ).pipe(
       tap(() => {
-        // Update cache
-        const request = this.requestsCache.find(r => r.id === id);
-        if (request) {
-          request.status = status;
-          request.updatedAt = new Date().toISOString();
-        }
+        console.log('Status updated successfully');
       }),
-      catchError(error => {
-        console.error('Error updating status:', error);
-        throw error;
-      })
+      catchError(this.handleError)
     );
   }
 
   assignRequest(id: string, agentId: string): Observable<any> {
+    console.log('Assigning request:', id, 'to agent:', agentId);
+    
+    // Send undefined if empty string, but backend expects null? We'll handle it
+    const payload = {
+      agentId: agentId || undefined
+    };
+    
     return this.http.put(
       `${this.baseUrl}/requests/${id}/assign`,
-      { agentId },
-      { headers: this.getHeaders() }
+      payload
     ).pipe(
-      tap(() => {
-        // Update cache
-        const request = this.requestsCache.find(r => r.id === id);
-        if (request) {
-          request.assignedAgentId = agentId || undefined;
-          request.updatedAt = new Date().toISOString();
-        }
+      tap((response: any) => {
+        console.log('Request assigned successfully:', response);
       }),
-      catchError(error => {
-        console.error('Error assigning agent:', error);
-        throw error;
-      })
+      catchError(this.handleError)
     );
   }
 
   deleteRequest(id: string): Observable<any> {
+    console.log('Deleting request:', id);
+    
     return this.http.delete(
-      `${this.baseUrl}/requests/${id}`,
-      { headers: this.getHeaders() }
+      `${this.baseUrl}/requests/${id}`
     ).pipe(
       tap(() => {
-        // Update cache
-        this.requestsCache = this.requestsCache.filter(r => r.id !== id);
+        console.log('Request deleted successfully');
       }),
-      catchError(error => {
-        console.error('Error deleting request:', error);
-        throw error;
-      })
+      catchError(this.handleError)
     );
   }
 
-  // =========================
-  // 💬 COMMENTS
-  // =========================
-
   getComments(requestId: string): Observable<Comment[]> {
+    console.log('Fetching comments for request:', requestId);
+    
     return this.http.get<Comment[]>(
-      `${this.baseUrl}/requests/${requestId}/comments`,
-      { headers: this.getHeaders() }
+      `${this.baseUrl}/requests/${requestId}/comments`
     ).pipe(
+      tap(comments => {
+        console.log('Comments fetched successfully:', comments);
+      }),
       catchError(error => {
         console.error('Error fetching comments:', error);
         return of([]);
@@ -199,70 +204,86 @@ export class ApiService {
   }
 
   addComment(requestId: string, text: string, type: 'General' | 'Status update' | 'System-generated'): Observable<any> {
+    console.log('Adding comment to request:', requestId);
+    
     return this.http.post(
       `${this.baseUrl}/requests/${requestId}/comments`,
       {
         author: this.currentUser.name,
         text,
         type
-      },
-      { headers: this.getHeaders() }
+      }
     ).pipe(
-      catchError(error => {
-        console.error('Error adding comment:', error);
-        throw error;
-      })
+      tap((newComment) => {
+        console.log('Comment added successfully:', newComment);
+      }),
+      catchError(this.handleError)
     );
   }
 
-  // =========================
-  // 👥 AGENTS
-  // =========================
-
   getAgents(): Observable<User[]> {
-    // Return cached data immediately if available
-    if (this.agentsCache.length > 0) {
-      return of(this.agentsCache);
-    }
+    console.log('Fetching agents from:', `${this.baseUrl}/agents`);
     
     return this.http.get<User[]>(
-      `${this.baseUrl}/agents`,
-      { headers: this.getHeaders() }
+      `${this.baseUrl}/agents`
     ).pipe(
-      tap(agents => this.agentsCache = agents),
+      tap(agents => {
+        console.log('Agents fetched successfully:', agents);
+      }),
       catchError(error => {
         console.error('Error fetching agents:', error);
-        // Return mock agents with proper Role typing
         const mockAgents: User[] = [
           { id: 'agent-1', name: 'John Doe', role: 'Agent' as Role },
-          { id: 'agent-2', name: 'Jane Smith', role: 'Agent' as Role }
+          { id: 'agent-2', name: 'Jane Smith', role: 'Agent' as Role },
+          { id: 'agent-3', name: 'Alex Johnson', role: 'Agent' as Role },
+          { id: 'agent-4', name: 'Sarah Lee', role: 'Agent' as Role }
         ];
-        this.agentsCache = mockAgents;
         return of(mockAgents);
       })
     );
   }
 
   addAgent(name: string): Observable<User> {
-    const newAgent: User = {
-      id: 'agent-' + Date.now(),
-      name: name,
-      role: 'Agent' as Role
-    };
+    console.log('Adding agent with name:', name);
     
-    // Simulate successful creation
-    this.agentsCache = [...this.agentsCache, newAgent];
-    return of(newAgent);
+    return this.http.post<User>(
+      `${this.baseUrl}/agents`,
+      { name, role: 'Agent' }
+    ).pipe(
+      tap(newAgent => {
+        console.log('Agent added successfully:', newAgent);
+      }),
+      catchError(this.handleError)
+    );
   }
 
   deleteAgent(id: string): Observable<any> {
-    this.agentsCache = this.agentsCache.filter(a => a.id !== id);
-    return of({ success: true });
+    console.log('Deleting agent:', id);
+    
+    return this.http.delete(
+      `${this.baseUrl}/agents/${id}`
+    ).pipe(
+      tap(() => {
+        console.log('Agent deleted successfully');
+      }),
+      catchError(this.handleError)
+    );
   }
 
-  // Clear cache (useful for testing)
-  clearCache(): void {
-    this.agentsCache = [];
-    this.requestsCache = [];
+  checkEscalations(): Observable<any> {
+    console.log('Checking escalations');
+    
+    return this.http.post(
+      `${this.baseUrl}/requests/check-escalations`,
+      {}
+    ).pipe(
+      tap(result => {
+        console.log('Escalations checked:', result);
+      }),
+      catchError(error => {
+        console.error('Error checking escalations:', error);
+        return of({ escalated: [], count: 0 });
+      })
+    );
   }
 }
