@@ -47,7 +47,7 @@ import { ApiService } from '../services/api.service';
         </a>
 
         <!-- Agents link - COMPLETELY HIDDEN from non-Admin users -->
-        <a *ngIf="isAdmin" 
+        <a *ngIf="isAdmin"
            routerLink="/agents"
            routerLinkActive="active"
            class="nav-item">
@@ -69,12 +69,13 @@ import { ApiService } from '../services/api.service';
     .sidebar {
       width: 220px;
       min-width: 220px;
-      background: #0f172a;
+      background: #0a0f1c;
       color: #cbd5e1;
       display: flex;
       flex-direction: column;
       padding: 0;
       height: 100vh;
+      border-right: 1px solid #2d2f3e;
     }
 
     /* Logo */
@@ -83,12 +84,12 @@ import { ApiService } from '../services/api.service';
       align-items: center;
       gap: 10px;
       padding: 20px 20px 24px;
-      border-bottom: 1px solid #1e293b;
+      border-bottom: 1px solid #2d2f3e;
     }
     .logo-icon {
       width: 32px;
       height: 32px;
-      background: #4f46e5;
+      background: #7c3aed;
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -130,7 +131,7 @@ import { ApiService } from '../services/api.service';
       color: #f1f5f9;
     }
     .nav-item.active {
-      background: #4f46e5;
+      background: #7c3aed;
       color: white;
     }
     .nav-item.active .nav-icon {
@@ -151,7 +152,7 @@ import { ApiService } from '../services/api.service';
       padding: 16px 20px;
       font-size: 0.7rem;
       color: #475569;
-      border-top: 1px solid #1e293b;
+      border-top: 1px solid #2d2f3e;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
