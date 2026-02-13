@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { ApiService } from '../services/api.service';
-import { Request, Status, User } from '../models';
+import { Request, Status, User, isOverdue } from '../models';
 
 @Component({
   standalone: true,
@@ -121,7 +121,7 @@ import { Request, Status, User } from '../models';
           </div>
         </div>
 
-        <!-- All Requests Table (Shows immediately) -->
+        <!-- All Requests Table (Shows all requests, not just recent) -->
         <div class="panel">
           <div class="panel-header">
             <h2 class="panel-title" style="margin:0">All Requests</h2>
@@ -151,7 +151,7 @@ import { Request, Status, User } from '../models';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let r of recentRequests()"
+              <tr *ngFor="let r of requests"
                   [class.overdue-row]="isOverdue(r)"
                   (click)="navigateToDetail(r.id)"
                   style="cursor: pointer;"
@@ -277,13 +277,18 @@ import { Request, Status, User } from '../models';
     </div>
   `,
   styles: [`
-    .dashboard { max-width: 1300px; }
+    .dashboard {
+      max-width: 1300px;
+      background: #0a0f1c;
+      padding: 24px;
+      border-radius: 16px;
+    }
 
     /* Success Message */
-    .alert-success { 
-      background: #f0fdf4; 
-      border-left: 4px solid #22c55e; 
-      color: #14532d; 
+    .alert-success {
+      background: #132b1e;
+      border-left: 4px solid #7c3aed;
+      color: #e0e7ff;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -292,9 +297,9 @@ import { Request, Status, User } from '../models';
       margin-bottom: 20px;
       position: relative;
     }
-    .alert-success svg { 
-      color: #22c55e; 
-      flex-shrink: 0; 
+    .alert-success svg {
+      color: #7c3aed;
+      flex-shrink: 0;
     }
     .close-btn {
       position: absolute;
@@ -302,27 +307,53 @@ import { Request, Status, User } from '../models';
       top: 12px;
       background: none;
       border: none;
-      color: #64748b;
+      color: #94a3b8;
       cursor: pointer;
       font-size: 14px;
       padding: 4px;
     }
     .close-btn:hover {
-      color: #0f172a;
+      color: #f1f5f9;
     }
 
     /* Header */
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .page-title  { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; letter-spacing: -0.02em; }
-    .page-sub    { font-size: 0.8rem; color: #64748b; }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    .page-title  {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+    .page-sub    {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
 
     /* Alert */
     .alert {
-      display: flex; align-items: center; gap: 10px;
-      padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
     }
-    .alert-danger { background: #fef2f2; border-left: 4px solid #ef4444; color: #7f1d1d; }
-    .alert-danger svg { color: #ef4444; flex-shrink: 0; }
+    .alert-danger {
+      background: #2d1a1c;
+      border-left: 4px solid #7c3aed;
+      color: #ffcdd2;
+    }
+    .alert-danger svg {
+      color: #7c3aed;
+      flex-shrink: 0;
+    }
 
     /* Stats */
     .stats-grid {
@@ -332,102 +363,427 @@ import { Request, Status, User } from '../models';
       margin-bottom: 24px;
     }
     .stat-card {
-      background: white; border-radius: 12px; padding: 18px 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: relative; overflow: hidden;
+      background: #1a1f2e;
+      border-radius: 12px;
+      padding: 18px 16px;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #2d2f3e;
     }
-    .stat-label { font-size: 0.65rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
-    .stat-value { font-size: 1.9rem; font-weight: 700; color: #0f172a; line-height: 1; }
-    .text-danger { color: #ef4444 !important; }
+    .stat-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      line-height: 1;
+    }
+    .text-danger {
+      color: #ff6b6b !important;
+    }
     .stat-icon {
-      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-      width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .stat-icon--blue   { background: #eff6ff; color: #3b82f6; }
-    .stat-icon--indigo { background: #eef2ff; color: #6366f1; }
-    .stat-icon--amber  { background: #fffbeb; color: #f59e0b; }
-    .stat-icon--green  { background: #f0fdf4; color: #22c55e; }
-    .stat-icon--red    { background: #fef2f2; color: #ef4444; }
+    .stat-icon--blue   {
+      background: #1e293b;
+      color: #7c3aed;
+    }
+    .stat-icon--indigo {
+      background: #1e293b;
+      color: #7c3aed;
+    }
+    .stat-icon--amber  {
+      background: #1e293b;
+      color: #7c3aed;
+    }
+    .stat-icon--green  {
+      background: #1e293b;
+      color: #7c3aed;
+    }
+    .stat-icon--red    {
+      background: #1e293b;
+      color: #7c3aed;
+    }
 
     /* Panel */
-    .panel { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 24px; overflow: hidden; }
-    .panel-header { display: flex; align-items: center; gap: 10px; padding: 20px 24px 16px; }
-    .panel-title  { font-size: 1rem; font-weight: 600; color: #1e293b; padding: 20px 24px 16px; margin: 0; }
-    .count-badge  { background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .panel {
+      background: #1a1f2e;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
+      margin-bottom: 24px;
+      overflow: hidden;
+      border: 1px solid #2d2f3e;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 24px 16px;
+    }
+    .panel-title  {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      padding: 20px 24px 16px;
+      margin: 0;
+    }
+    .count-badge  {
+      background: #2d2f3e;
+      color: #a78bfa;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
 
     /* Distribution */
-    .dist-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: #f1f5f9; margin: 0 24px 14px; gap: 2px; }
-    .dist-segment { transition: flex 0.4s; min-width: 0; }
-    .dist-open { background: #818cf8; } .dist-progress { background: #6366f1; }
-    .dist-blocked { background: #f59e0b; } .dist-done { background: #22c55e; } .dist-empty { background: #e2e8f0; }
-    .dist-legend { display: flex; gap: 24px; flex-wrap: wrap; padding: 0 24px 20px; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #64748b; }
-    .legend-item strong { color: #1e293b; }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
-    .dot-open { background: #818cf8; } .dot-progress { background: #6366f1; }
-    .dot-blocked { background: #f59e0b; } .dot-done { background: #22c55e; }
+    .dist-bar {
+      display: flex;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #2d2f3e;
+      margin: 0 24px 14px;
+      gap: 2px;
+    }
+    .dist-segment {
+      transition: flex 0.4s;
+      min-width: 0;
+    }
+    .dist-open {
+      background: #7c3aed;
+    }
+    .dist-progress {
+      background: #8b5cf6;
+    }
+    .dist-blocked {
+      background: #a78bfa;
+    }
+    .dist-done {
+      background: #6d28d9;
+    }
+    .dist-empty {
+      background: #2d2f3e;
+    }
+    .dist-legend {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      padding: 0 24px 20px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
+    .legend-item strong {
+      color: #f1f5f9;
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .dot-open {
+      background: #7c3aed;
+    }
+    .dot-progress {
+      background: #8b5cf6;
+    }
+    .dot-blocked {
+      background: #a78bfa;
+    }
+    .dot-done {
+      background: #6d28d9;
+    }
 
     /* Table */
-    .table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    .table th {
-      text-align: left; padding: 10px 14px;
-      font-size: 0.65rem; font-weight: 700; color: #94a3b8;
-      letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 1px solid #f1f5f9;
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
     }
-    .table td { padding: 12px 14px; border-bottom: 1px solid #f8fafc; color: #334155; vertical-align: middle; }
-    .table tbody tr:last-child td { border-bottom: none; }
-    .request-row:hover td { background: #fafbff; }
-    .overdue-row td { background: #fff9f9; }
-    .overdue-row:hover td { background: #fef2f2 !important; }
+    .table th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #2d2f3e;
+    }
+    .table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #2d2f3e;
+      color: #e2e8f0;
+      vertical-align: middle;
+    }
+    .table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .request-row:hover td {
+      background: #2d2f3e;
+    }
+    .overdue-row td {
+      background: #2d1a1c;
+    }
+    .overdue-row:hover td {
+      background: #3a1e20 !important;
+    }
 
-    .req-title { font-weight: 600; color: #1e293b; max-width: 180px; }
-    .req-tags  { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
-    .desc-cell { color: #64748b; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .date-cell { color: #64748b; white-space: nowrap; }
-    .agent-chip { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #374151; }
-    .avatar-sm  { width: 24px; height: 24px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 700; flex-shrink: 0; }
-    .unassigned { color: #94a3b8; font-style: italic; font-size: 0.8rem; }
+    .req-title {
+      font-weight: 600;
+      color: #f1f5f9;
+      max-width: 180px;
+    }
+    .req-tags  {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .desc-cell {
+      color: #94a3b8;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .date-cell {
+      color: #94a3b8;
+      white-space: nowrap;
+    }
+    .agent-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+    }
+    .avatar-sm  {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #4f46e5;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .unassigned {
+      color: #94a3b8;
+      font-style: italic;
+      font-size: 0.8rem;
+    }
 
     /* Badges */
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
-    .priority-critical { background: #fef2f2; color: #dc2626; }
-    .priority-high     { background: #fff7ed; color: #ea580c; }
-    .priority-medium   { background: #fefce8; color: #ca8a04; }
-    .priority-low      { background: #f0fdf4; color: #16a34a; }
-    .status-open        { background: #eef2ff; color: #4f46e5; }
-    .status-in-progress { background: #f5f3ff; color: #7c3aed; }
-    .status-blocked     { background: #fef2f2; color: #dc2626; }
-    .status-done        { background: #f0fdf4; color: #16a34a; }
-    .overdue-tag { display: inline-block; margin-left: 4px; padding: 1px 6px; background: #fef2f2; color: #dc2626; border-radius: 999px; font-size: 0.65rem; font-weight: 700; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .priority-critical {
+      background: #2d1a1c;
+      color: #ff8a8a;
+      border: 1px solid #7c3aed;
+    }
+    .priority-high     {
+      background: #2d1a1c;
+      color: #ffb3b3;
+      border: 1px solid #7c3aed;
+    }
+    .priority-medium   {
+      background: #2d2f3e;
+      color: #a78bfa;
+      border: 1px solid #7c3aed;
+    }
+    .priority-low      {
+      background: #132b1e;
+      color: #86efac;
+      border: 1px solid #7c3aed;
+    }
+    .status-open        {
+      background: #1e293b;
+      color: #a78bfa;
+      border: 1px solid #7c3aed;
+    }
+    .status-in-progress {
+      background: #1e293b;
+      color: #c4b5fd;
+      border: 1px solid #7c3aed;
+    }
+    .status-blocked     {
+      background: #2d1a1c;
+      color: #ffb3b3;
+      border: 1px solid #7c3aed;
+    }
+    .status-done        {
+      background: #132b1e;
+      color: #86efac;
+      border: 1px solid #7c3aed;
+    }
+    .overdue-tag {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 1px 6px;
+      background: #7c3aed;
+      color: white;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
 
-    .action-btn { display: inline-block; padding: 5px 12px; background: #f1f5f9; color: #4f46e5; border-radius: 6px; font-size: 0.78rem; font-weight: 600; text-decoration: none; }
-    .action-btn:hover { background: #e0e7ff; }
-    .link { color: #4f46e5; font-weight: 600; }
-    .empty-state { display: flex; flex-direction: column; align-items: center; padding: 48px; color: #94a3b8; gap: 10px; font-size: 0.875rem; }
+    .action-btn {
+      display: inline-block;
+      padding: 5px 12px;
+      background: #4f46e5;
+      color: white;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .action-btn:hover {
+      background: #6366f1;
+    }
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px;
+      color: #94a3b8;
+      gap: 10px;
+      font-size: 0.875rem;
+    }
 
     /* Agent cards */
-    .request-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; padding: 0 24px 24px; }
-    .request-card {
-      border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;
-      cursor: pointer; transition: all 0.15s;
+    .request-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 16px;
+      padding: 0 24px 24px;
     }
-    .request-card:hover { border-color: #6366f1; box-shadow: 0 4px 14px rgba(99,102,241,0.12); transform: translateY(-1px); }
-    .request-card--overdue { border-color: #fca5a5; background: #fff9f9; }
-    .request-card--overdue:hover { border-color: #ef4444; box-shadow: 0 4px 14px rgba(239,68,68,0.12); }
-    .rc-header  { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-    .rc-title   { font-size: 0.95rem; font-weight: 600; color: #1e293b; margin-bottom: 6px; line-height: 1.4; }
-    .rc-desc    { font-size: 0.8rem; color: #64748b; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .rc-meta    { display: flex; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; margin-bottom: 10px; }
-    .rc-date    { display: flex; align-items: center; gap: 4px; }
-    .rc-footer  { font-size: 0.75rem; font-weight: 600; color: #4f46e5; text-align: right; }
+    .request-card {
+      border: 1px solid #2d2f3e;
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: #1a1f2e;
+    }
+    .request-card:hover {
+      border-color: #7c3aed;
+      box-shadow: 0 4px 14px rgba(124, 58, 237, 0.2);
+      transform: translateY(-1px);
+    }
+    .request-card--overdue {
+      border-color: #7c3aed;
+      background: #2d1a1c;
+    }
+    .rc-header  {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .rc-title   {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .rc-desc    {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .rc-meta    {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+    .rc-date    {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .rc-footer  {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #a78bfa;
+      text-align: right;
+    }
 
     /* Button */
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.15s; text-decoration: none; font-family: inherit; }
-    .btn-primary { background: #4f46e5; color: white; }
-    .btn-primary:hover { background: #4338ca; }
-    .btn-sm { padding: 6px 14px; font-size: 0.78rem; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 7px;
+      border: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: #7c3aed;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #6d28d9;
+    }
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 0.78rem;
+    }
 
-    @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 700px)  { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 1100px) {
+      .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 700px)  {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -441,7 +797,7 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.currentUser = this.api.getCurrentUser();
     this.loadData();
-    
+
     // Listen for request updates from other components
     this.api.getRequests().subscribe({
       next: r => {
@@ -454,7 +810,7 @@ export class DashboardComponent implements OnInit {
 
   loadData(): void {
     // Load requests immediately without loading state
-    this.api.getRequests().subscribe({ 
+    this.api.getRequests().subscribe({
       next: r => {
         this.requests = r;
         console.log('Dashboard - Requests loaded immediately:', r.length);
@@ -464,9 +820,9 @@ export class DashboardComponent implements OnInit {
         this.requests = [];
       }
     });
-    
+
     // Load agents immediately
-    this.api.getAgents().subscribe({ 
+    this.api.getAgents().subscribe({
       next: a => {
         this.agents = a;
         console.log('Dashboard - Agents loaded immediately:', a.length);
@@ -482,42 +838,33 @@ export class DashboardComponent implements OnInit {
   count(status: Status): number {
     return this.requests.filter(r => r.status === status).length;
   }
-  
+
   criticalCount(): number {
     return this.requests.filter(r => r.priority === 'Critical' && r.status !== 'Done').length;
   }
-  
+
   overdue(): Request[] {
     return this.requests.filter(r => r.status !== 'Done' && new Date(r.dueDate) < new Date());
   }
-  
+
   escalated(): Request[] {
     return this.overdue().filter(r => {
       const days = (Date.now() - new Date(r.dueDate).getTime()) / 86400000;
       return days > 3 && r.priority === 'Critical';
     });
   }
-  
+
   isOverdue(r: Request): boolean {
-    return r.status !== 'Done' && new Date(r.dueDate) < new Date();
+    return isOverdue(r);
   }
-  
-  recentRequests(): Request[] {
-    if (!this.requests || this.requests.length === 0) {
-      return [];
-    }
-    return [...this.requests]
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 10); // Show only 10 most recent requests
-  }
-  
+
   agentName(id: string): string {
     if (!this.agents || this.agents.length === 0) {
       return id;
     }
     return this.agents.find(a => a.id === id)?.name ?? id;
   }
-  
+
   agentInitials(id: string): string {
     const name = this.agentName(id);
     return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -531,11 +878,11 @@ export class DashboardComponent implements OnInit {
   myRequests(): Request[] {
     return this.requests.filter(r => r.assignedAgentId === this.currentUser.id);
   }
-  
+
   myCount(status: Status): number {
     return this.myRequests().filter(r => r.status === status).length;
   }
-  
+
   myOverdue(): Request[] {
     return this.myRequests().filter(r => this.isOverdue(r));
   }
