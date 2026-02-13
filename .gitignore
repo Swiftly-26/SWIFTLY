@@ -22,6 +22,7 @@ backend/.env.local
 backend/.env.development
 backend/.env.production
 backend/.env.test
+backend\node_modules
 
 
 

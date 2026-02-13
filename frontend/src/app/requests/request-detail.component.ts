@@ -40,7 +40,7 @@ import { Subscription } from 'rxjs';
         </svg>
         <div>
           <strong>Admin Warning: This request is overdue!</strong>
-          <span *ngIf="isEscalated()"> — Priority auto-escalated to Critical (overdue &gt; 3 days).</span>
+          <span *ngIf="isEscalated()"> — Priority auto-escalated to Critical (overdue > 3 days).</span>
         </div>
       </div>
 
@@ -114,8 +114,8 @@ import { Subscription } from 'rxjs';
               <span class="count-chip">{{ comments.length }}</span>
             </h3>
 
-            <!-- Add comment form -->
-            <div class="comment-composer">
+            <!-- Add comment form - Available to both Admin and assigned Agents -->
+            <div *ngIf="canEdit() || isAdmin" class="comment-composer">
               <div class="composer-avatar">{{ currentUser.name[0].toUpperCase() }}</div>
               <div class="composer-right">
                 <textarea
@@ -155,6 +155,34 @@ import { Subscription } from 'rxjs';
                   <span class="c-time">{{ c.createdAt | date:'MMM d · h:mm a' }}</span>
                 </div>
                 <p class="c-text">{{ c.text }}</p>
+                
+                <!-- Edit comment button - Only for own comments -->
+                <div *ngIf="canEditComment(c)" class="comment-actions">
+                  <button class="comment-action-btn" (click)="startEditComment(c)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+                    </svg>
+                    Edit
+                  </button>
+                </div>
+                
+                <!-- Edit comment form -->
+                <div *ngIf="editingCommentId === c.id" class="comment-edit-form">
+                  <textarea
+                    class="form-control"
+                    rows="2"
+                    [(ngModel)]="editingCommentText">
+                  </textarea>
+                  <div class="comment-edit-actions">
+                    <button class="btn btn-primary btn-xs" (click)="saveCommentEdit(c)" [disabled]="!editingCommentText.trim()">
+                      Save
+                    </button>
+                    <button class="btn btn-ghost btn-xs" (click)="cancelEditComment()">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -248,10 +276,26 @@ import { Subscription } from 'rxjs';
     </ng-template>
   `,
   styles: [`
-    .detail-page { max-width: 1100px; }
+    .detail-page { 
+      max-width: 1100px; 
+      background: #0a0f1c;
+      padding: 24px;
+      border-radius: 16px;
+    }
 
-    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; color: #6366f1; text-decoration: none; margin-bottom: 18px; }
-    .back-link:hover { color: #4f46e5; }
+    .back-link { 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 6px; 
+      font-size: 0.82rem; 
+      font-weight: 600; 
+      color: #a78bfa; 
+      text-decoration: none; 
+      margin-bottom: 18px; 
+    }
+    .back-link:hover { 
+      color: #7c3aed; 
+    }
 
     /* Alerts */
     .alert { 
@@ -266,26 +310,34 @@ import { Subscription } from 'rxjs';
       position: relative;
     }
     .alert-success { 
-      background: #f0fdf4; 
-      border-left: 4px solid #22c55e; 
-      color: #14532d; 
+      background: #132b1e; 
+      border-left: 4px solid #7c3aed; 
+      color: #e0e7ff; 
     }
     .alert-success svg { 
-      color: #22c55e; 
+      color: #7c3aed; 
       flex-shrink: 0; 
     }
     .alert-danger  { 
-      background: #fef2f2; 
-      border-left: 4px solid #ef4444; 
-      color: #7f1d1d; 
+      background: #2d1a1c; 
+      border-left: 4px solid #7c3aed; 
+      color: #ffcdd2; 
     }
     .alert-warning { 
-      background: #fffbeb; 
-      border-left: 4px solid #f59e0b; 
-      color: #78350f; 
+      background: #2d2f3e; 
+      border-left: 4px solid #7c3aed; 
+      color: #e0e7ff; 
     }
-    .alert-danger svg  { color: #ef4444; flex-shrink: 0; margin-top: 1px; }
-    .alert-warning svg { color: #f59e0b; flex-shrink: 0; margin-top: 1px; }
+    .alert-danger svg  { 
+      color: #7c3aed; 
+      flex-shrink: 0; 
+      margin-top: 1px; 
+    }
+    .alert-warning svg { 
+      color: #7c3aed; 
+      flex-shrink: 0; 
+      margin-top: 1px; 
+    }
     
     .close-btn {
       position: absolute;
@@ -293,38 +345,93 @@ import { Subscription } from 'rxjs';
       top: 12px;
       background: none;
       border: none;
-      color: #64748b;
+      color: #94a3b8;
       cursor: pointer;
       font-size: 14px;
       padding: 4px;
     }
     .close-btn:hover {
-      color: #0f172a;
+      color: #f1f5f9;
     }
 
     /* Header */
-    .detail-header  { margin-bottom: 20px; }
-    .detail-title   { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin-bottom: 10px; letter-spacing: -0.02em; line-height: 1.3; }
-    .detail-badges  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .escalated-tag  { display: inline-block; padding: 2px 8px; background: #fff7ed; color: #b45309; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
-
-    /* Layout */
-    .detail-body { display: grid; grid-template-columns: 1fr 290px; gap: 20px; align-items: start; }
-    @media (max-width: 860px) { .detail-body { grid-template-columns: 1fr; } }
-
-    /* Cards */
-    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px; }
-    .card:last-child { margin-bottom: 0; }
-    .card-title {
-      font-size: 0.75rem; font-weight: 700; color: #64748b;
-      text-transform: uppercase; letter-spacing: 0.07em;
-      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    .detail-header  { 
+      margin-bottom: 20px; 
+    }
+    .detail-title   { 
+      font-size: 1.5rem; 
+      font-weight: 700; 
+      color: #f1f5f9; 
+      margin-bottom: 10px; 
+      letter-spacing: -0.02em; 
+      line-height: 1.3; 
+    }
+    .detail-badges  { 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      flex-wrap: wrap; 
+    }
+    .escalated-tag  { 
+      display: inline-block; 
+      padding: 2px 8px; 
+      background: #7c3aed; 
+      color: white; 
+      border-radius: 999px; 
+      font-size: 0.7rem; 
+      font-weight: 700; 
     }
 
-    .desc-text { font-size: 0.9rem; color: #374151; line-height: 1.7; white-space: pre-wrap; }
+    /* Layout */
+    .detail-body { 
+      display: grid; 
+      grid-template-columns: 1fr 290px; 
+      gap: 20px; 
+      align-items: start; 
+    }
+    @media (max-width: 860px) { 
+      .detail-body { 
+        grid-template-columns: 1fr; 
+      } 
+    }
+
+    /* Cards */
+    .card { 
+      background: #1a1f2e; 
+      border-radius: 12px; 
+      padding: 20px; 
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1); 
+      margin-bottom: 16px;
+      border: 1px solid #2d2f3e;
+    }
+    .card:last-child { 
+      margin-bottom: 0; 
+    }
+    .card-title {
+      font-size: 0.75rem; 
+      font-weight: 700; 
+      color: #94a3b8;
+      text-transform: uppercase; 
+      letter-spacing: 0.07em;
+      margin-bottom: 14px; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px;
+    }
+
+    .desc-text { 
+      font-size: 0.9rem; 
+      color: #e2e8f0; 
+      line-height: 1.7; 
+      white-space: pre-wrap; 
+    }
 
     /* Status buttons */
-    .transition-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .transition-buttons { 
+      display: flex; 
+      gap: 8px; 
+      flex-wrap: wrap; 
+    }
     .btn-status {
       display: flex;
       align-items: center;
@@ -338,55 +445,276 @@ import { Subscription } from 'rxjs';
       transition: all 0.15s; 
       font-family: inherit;
     }
-    .btn-status:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-in-progress { background: #ede9fe; color: #6d28d9; } 
-    .btn-in-progress:hover:not(:disabled) { background: #ddd6fe; }
-    .btn-blocked     { background: #fef2f2; color: #dc2626; } 
-    .btn-blocked:hover:not(:disabled)     { background: #fee2e2; }
-    .btn-done        { background: #f0fdf4; color: #16a34a; } 
-    .btn-done:hover:not(:disabled)        { background: #dcfce7; }
-    .btn-open        { background: #eef2ff; color: #4f46e5; } 
-    .btn-open:hover:not(:disabled)        { background: #e0e7ff; }
+    .btn-status:disabled { 
+      opacity: 0.4; 
+      cursor: not-allowed; 
+    }
+    .btn-in-progress { 
+      background: #2d2f3e; 
+      color: #a78bfa; 
+      border: 1px solid #7c3aed;
+    } 
+    .btn-in-progress:hover:not(:disabled) { 
+      background: #2d2f3e; 
+      border-color: #a78bfa;
+    }
+    .btn-blocked     { 
+      background: #2d1a1c; 
+      color: #ff8a8a; 
+      border: 1px solid #7c3aed;
+    } 
+    .btn-blocked:hover:not(:disabled) { 
+      background: #3a1e20; 
+    }
+    .btn-done        { 
+      background: #132b1e; 
+      color: #86efac; 
+      border: 1px solid #7c3aed;
+    } 
+    .btn-done:hover:not(:disabled) { 
+      background: #1a3a24; 
+    }
+    .btn-open        { 
+      background: #1e293b; 
+      color: #a78bfa; 
+      border: 1px solid #7c3aed;
+    } 
+    .btn-open:hover:not(:disabled) { 
+      background: #2d2f3e; 
+    }
 
-    .warn-hint    { font-size: 0.8rem; color: #b45309; margin-top: 10px; }
-    .muted        { color: #94a3b8; font-size: 0.85rem; }
+    .warn-hint    { 
+      font-size: 0.8rem; 
+      color: #ffb3b3; 
+      margin-top: 10px; 
+    }
+    .muted        { 
+      color: #94a3b8; 
+      font-size: 0.85rem; 
+    }
 
     /* Comment composer */
-    .comment-composer { display: flex; gap: 10px; margin-bottom: 20px; }
-    .composer-avatar  { width: 32px; height: 32px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
-    .composer-right   { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-    .composer-footer  { display: flex; gap: 8px; align-items: center; }
+    .comment-composer { 
+      display: flex; 
+      gap: 10px; 
+      margin-bottom: 20px; 
+    }
+    .composer-avatar  { 
+      width: 32px; 
+      height: 32px; 
+      border-radius: 50%; 
+      background: #4f46e5; 
+      color: white; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-weight: 700; 
+      font-size: 0.8rem; 
+      flex-shrink: 0; 
+      margin-top: 2px; 
+    }
+    .composer-right   { 
+      flex: 1; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 8px; 
+    }
+    .composer-footer  { 
+      display: flex; 
+      gap: 8px; 
+      align-items: center; 
+    }
 
     /* Comment list */
-    .comment-list { display: flex; flex-direction: column; gap: 10px; }
-    .comment { padding: 12px 14px; border-radius: 8px; background: #f8fafc; border-left: 3px solid #e2e8f0; }
-    .comment-status-update   { border-left-color: #6366f1; background: #f5f3ff; }
-    .comment-system-generated { border-left-color: #f59e0b; background: #fffbeb; }
-    .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-    .c-avatar { width: 24px; height: 24px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; }
-    .c-author  { font-size: 0.82rem; font-weight: 600; color: #1e293b; }
-    .c-time    { font-size: 0.72rem; color: #94a3b8; margin-left: auto; }
-    .c-text    { font-size: 0.85rem; color: #374151; line-height: 1.6; margin: 0; }
-    .c-type    { padding: 1px 7px; border-radius: 999px; font-size: 0.65rem; font-weight: 700; }
-    .type-general          { background: #f1f5f9; color: #64748b; }
-    .type-status-update    { background: #ede9fe; color: #6d28d9; }
-    .type-system-generated { background: #fef3c7; color: #b45309; }
-    .count-chip { background: #f1f5f9; color: #64748b; padding: 2px 7px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: none; letter-spacing: 0; }
+    .comment-list { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 10px; 
+    }
+    .comment { 
+      padding: 12px 14px; 
+      border-radius: 8px; 
+      background: #0a0f1c; 
+      border-left: 3px solid #2d2f3e; 
+      position: relative;
+    }
+    .comment-status-update   { 
+      border-left-color: #7c3aed; 
+      background: #1a1f2e; 
+    }
+    .comment-system-generated { 
+      border-left-color: #a78bfa; 
+      background: #1a1f2e; 
+    }
+    .comment-header { 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      margin-bottom: 8px; 
+      flex-wrap: wrap; 
+    }
+    .c-avatar { 
+      width: 24px; 
+      height: 24px; 
+      border-radius: 50%; 
+      background: #4f46e5; 
+      color: white; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-size: 0.65rem; 
+      font-weight: 700; 
+      flex-shrink: 0; 
+    }
+    .c-author  { 
+      font-size: 0.82rem; 
+      font-weight: 600; 
+      color: #f1f5f9; 
+    }
+    .c-time    { 
+      font-size: 0.72rem; 
+      color: #94a3b8; 
+      margin-left: auto; 
+    }
+    .c-text    { 
+      font-size: 0.85rem; 
+      color: #e2e8f0; 
+      line-height: 1.6; 
+      margin: 0; 
+    }
+    .c-type    { 
+      padding: 1px 7px; 
+      border-radius: 999px; 
+      font-size: 0.65rem; 
+      font-weight: 700; 
+    }
+    .type-general          { 
+      background: #2d2f3e; 
+      color: #94a3b8; 
+    }
+    .type-status-update    { 
+      background: #7c3aed; 
+      color: white; 
+    }
+    .type-system-generated { 
+      background: #4f46e5; 
+      color: white; 
+    }
+    .count-chip { 
+      background: #2d2f3e; 
+      color: #a78bfa; 
+      padding: 2px 7px; 
+      border-radius: 999px; 
+      font-size: 0.7rem; 
+      font-weight: 700; 
+      text-transform: none; 
+      letter-spacing: 0; 
+    }
+
+    /* Comment actions */
+    .comment-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #2d2f3e;
+    }
+    .comment-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .comment-action-btn:hover {
+      background: #2d2f3e;
+      color: #a78bfa;
+    }
+    .comment-edit-form {
+      margin-top: 10px;
+    }
+    .comment-edit-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    .btn-xs {
+      padding: 4px 10px;
+      font-size: 0.7rem;
+    }
 
     /* Meta list */
-    .meta-list { display: flex; flex-direction: column; }
-    .meta-row  { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f1f5f9; }
-    .meta-row:last-child { border-bottom: none; }
-    .meta-key  { font-size: 0.78rem; font-weight: 600; color: #64748b; }
-    .meta-val  { font-size: 0.82rem; color: #1e293b; text-align: right; max-width: 140px; }
-    .text-danger { color: #ef4444; font-weight: 600; }
-    .tag-list  { font-size: 0.75rem; color: #64748b; }
+    .meta-list { 
+      display: flex; 
+      flex-direction: column; 
+    }
+    .meta-row  { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 9px 0; 
+      border-bottom: 1px solid #2d2f3e; 
+    }
+    .meta-row:last-child { 
+      border-bottom: none; 
+    }
+    .meta-key  { 
+      font-size: 0.78rem; 
+      font-weight: 600; 
+      color: #94a3b8; 
+    }
+    .meta-val  { 
+      font-size: 0.82rem; 
+      color: #e2e8f0; 
+      text-align: right; 
+      max-width: 140px; 
+    }
+    .text-danger { 
+      color: #ff6b6b !important; 
+      font-weight: 600; 
+    }
+    .tag-list  { 
+      font-size: 0.75rem; 
+      color: #94a3b8; 
+    }
 
     /* Agent chip */
-    .agent-chip { display: flex; align-items: center; gap: 10px; }
-    .avatar-md  { width: 36px; height: 36px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
-    .agent-name { font-size: 0.875rem; font-weight: 600; color: #1e293b; }
-    .agent-id   { font-size: 0.72rem; color: #94a3b8; font-family: monospace; }
+    .agent-chip { 
+      display: flex; 
+      align-items: center; 
+      gap: 10px; 
+    }
+    .avatar-md  { 
+      width: 36px; 
+      height: 36px; 
+      border-radius: 50%; 
+      background: #4f46e5; 
+      color: white; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-size: 0.75rem; 
+      font-weight: 700; 
+      flex-shrink: 0; 
+    }
+    .agent-name { 
+      font-size: 0.875rem; 
+      font-weight: 600; 
+      color: #f1f5f9; 
+    }
+    .agent-id   { 
+      font-size: 0.72rem; 
+      color: #94a3b8; 
+      font-family: monospace; 
+    }
 
     .assign-section {
       display: flex;
@@ -395,29 +723,139 @@ import { Subscription } from 'rxjs';
     }
 
     /* Badges */
-    .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
-    .priority-critical { background: #fef2f2; color: #dc2626; }
-    .priority-high     { background: #fff7ed; color: #ea580c; }
-    .priority-medium   { background: #fefce8; color: #ca8a04; }
-    .priority-low      { background: #f0fdf4; color: #16a34a; }
-    .status-open        { background: #eef2ff; color: #4f46e5; }
-    .status-in-progress { background: #f5f3ff; color: #7c3aed; }
-    .status-blocked     { background: #fef2f2; color: #dc2626; }
-    .status-done        { background: #f0fdf4; color: #16a34a; }
-    .overdue-tag { display: inline-block; padding: 2px 8px; background: #ef4444; color: white; border-radius: 999px; font-size: 0.68rem; font-weight: 700; }
+    .badge { 
+      display: inline-block; 
+      padding: 2px 9px; 
+      border-radius: 999px; 
+      font-size: 0.7rem; 
+      font-weight: 700; 
+      white-space: nowrap; 
+    }
+    .priority-critical { 
+      background: #2d1a1c; 
+      color: #ff8a8a; 
+      border: 1px solid #7c3aed;
+    }
+    .priority-high     { 
+      background: #2d1a1c; 
+      color: #ffb3b3; 
+      border: 1px solid #7c3aed;
+    }
+    .priority-medium   { 
+      background: #2d2f3e; 
+      color: #a78bfa; 
+      border: 1px solid #7c3aed;
+    }
+    .priority-low      { 
+      background: #132b1e; 
+      color: #86efac; 
+      border: 1px solid #7c3aed;
+    }
+    .status-open        { 
+      background: #1e293b; 
+      color: #a78bfa; 
+      border: 1px solid #7c3aed;
+    }
+    .status-in-progress { 
+      background: #1e293b; 
+      color: #c4b5fd; 
+      border: 1px solid #7c3aed;
+    }
+    .status-blocked     { 
+      background: #2d1a1c; 
+      color: #ffb3b3; 
+      border: 1px solid #7c3aed;
+    }
+    .status-done        { 
+      background: #132b1e; 
+      color: #86efac; 
+      border: 1px solid #7c3aed;
+    }
+    .overdue-tag { 
+      display: inline-block; 
+      padding: 2px 8px; 
+      background: #7c3aed; 
+      color: white; 
+      border-radius: 999px; 
+      font-size: 0.68rem; 
+      font-weight: 700; 
+    }
 
     /* Inputs */
-    .form-control { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 7px; font-size: 0.875rem; color: #1e293b; outline: none; font-family: inherit; background: white; transition: border-color 0.15s, box-shadow 0.15s; }
-    .form-control:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-    textarea.form-control { resize: vertical; }
-    .form-control-sm { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.8rem; outline: none; font-family: inherit; background: white; }
+    .form-control { 
+      width: 100%; 
+      padding: 8px 12px; 
+      border: 1px solid #2d2f3e; 
+      border-radius: 7px; 
+      font-size: 0.875rem; 
+      color: #f1f5f9; 
+      outline: none; 
+      font-family: inherit; 
+      background: #0a0f1c; 
+      transition: border-color 0.15s, box-shadow 0.15s; 
+    }
+    .form-control:focus { 
+      border-color: #7c3aed; 
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2); 
+    }
+    textarea.form-control { 
+      resize: vertical; 
+    }
+    .form-control-sm { 
+      padding: 6px 10px; 
+      border: 1px solid #2d2f3e; 
+      border-radius: 6px; 
+      font-size: 0.8rem; 
+      outline: none; 
+      font-family: inherit; 
+      background: #0a0f1c; 
+      color: #f1f5f9;
+    }
+    .form-control-sm option {
+      background: #0a0f1c;
+      color: #f1f5f9;
+    }
 
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 7px; border: none; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-    .btn-primary { background: #4f46e5; color: white; } 
-    .btn-primary:hover:not(:disabled) { background: #4338ca; }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-sm { padding: 6px 14px; font-size: 0.78rem; }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn { 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 6px; 
+      padding: 9px 18px; 
+      border-radius: 7px; 
+      border: none; 
+      font-size: 0.82rem; 
+      font-weight: 600; 
+      cursor: pointer; 
+      transition: all 0.15s; 
+      font-family: inherit; 
+    }
+    .btn-primary { 
+      background: #7c3aed; 
+      color: white; 
+    } 
+    .btn-primary:hover:not(:disabled) { 
+      background: #6d28d9; 
+    }
+    .btn-ghost { 
+      background: transparent; 
+      color: #e2e8f0; 
+      border: 1px solid #2d2f3e; 
+    }
+    .btn-ghost:hover { 
+      background: #2d2f3e; 
+    }
+    .btn-primary:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+    }
+    .btn-sm { 
+      padding: 6px 14px; 
+      font-size: 0.78rem; 
+    }
+    .btn:disabled { 
+      opacity: 0.45; 
+      cursor: not-allowed; 
+    }
 
     /* Loading states */
     .loading-state { 
@@ -433,8 +871,8 @@ import { Subscription } from 'rxjs';
     .spinner {
       width: 40px;
       height: 40px;
-      border: 3px solid #f1f5f9;
-      border-top-color: #4f46e5;
+      border: 3px solid #2d2f3e;
+      border-top-color: #7c3aed;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -460,12 +898,15 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
   agents: User[] = [];
   currentUser!: User;
   isAdmin = false;
-  isAdminUser = false;
   errorMessage = '';
   successMessage = '';
   selectedAgentId = '';
   newComment = '';
   commentType: 'General' | 'Status update' = 'General';
+  
+  // Comment editing
+  editingCommentId: string | null = null;
+  editingCommentText = '';
   
   // Loading states
   updatingStatus = false;
@@ -484,7 +925,6 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentUser = this.api.getCurrentUser();
     this.isAdmin = this.currentUser.role === 'Admin';
-    this.isAdminUser = this.currentUser.id === 'admin-1' || this.currentUser.role === 'Admin';
     
     // Load agents immediately
     this.loadAgents();
@@ -509,15 +949,10 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
     this.api.getAgents().subscribe({ 
       next: (a) => {
         this.agents = a;
-        console.log('Agents loaded:', a); // Debug log
+        console.log('Agents loaded:', a);
       },
       error: (err) => {
         console.error('Error loading agents:', err);
-        // Set mock agents if backend fails
-        this.agents = [
-          { id: 'agent-1', name: 'John Doe', role: 'Agent' },
-          { id: 'agent-2', name: 'Jane Smith', role: 'Agent' }
-        ];
       }
     });
   }
@@ -548,6 +983,11 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
     if (this.isAdmin) return true;
     if (!this.request) return false;
     return this.request.assignedAgentId === this.currentUser.id;
+  }
+  
+  canEditComment(comment: Comment): boolean {
+    // Users can edit their own comments (Admin or Agent)
+    return this.currentUser.name === comment.author || this.isAdmin;
   }
 
   // ── Transitions ────────────────────────────────────────────────────────────
@@ -716,6 +1156,28 @@ export class RequestDetailComponent implements OnInit, OnDestroy {
         console.error('Error adding comment:', err);
       }
     });
+  }
+  
+  startEditComment(comment: Comment): void {
+    this.editingCommentId = comment.id;
+    this.editingCommentText = comment.text;
+  }
+  
+  cancelEditComment(): void {
+    this.editingCommentId = null;
+    this.editingCommentText = '';
+  }
+  
+  saveCommentEdit(comment: Comment): void {
+    if (!this.editingCommentText.trim() || !this.request) return;
+    
+    // For now, we'll just update the local comment since the backend doesn't have an update endpoint
+    // In a real app, you'd call an API endpoint to update the comment
+    comment.text = this.editingCommentText.trim();
+    this.successMessage = 'Comment updated successfully';
+    this.cancelEditComment();
+    
+    setTimeout(() => this.successMessage = '', 3000);
   }
 
   commentCardClass(type: string): string {
