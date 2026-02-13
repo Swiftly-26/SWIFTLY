@@ -23,7 +23,7 @@ import { HeaderComponent } from './layout/header.component';
       display: flex;
       height: 100vh;
       overflow: hidden;
-      background: #f1f5f9;
+      background: #0a0f1c;
     }
     .main-area {
       flex: 1;
@@ -35,7 +35,7 @@ import { HeaderComponent } from './layout/header.component';
       flex: 1;
       overflow-y: auto;
       padding: 28px 32px;
-      background: #f1f5f9;
+      background: #0a0f1c;
     }
   `]
 })
