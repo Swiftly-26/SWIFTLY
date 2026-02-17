@@ -1,42 +1,44 @@
-# Build stage
-FROM node:20.19.0-alpine AS build
+# ── STAGE 1: Build Frontend ─────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-build
 
-WORKDIR /app
+WORKDIR /app/frontend
 
-# Copy package files including lock files
-COPY package*.json ./
-COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
+# Copy package files first (better layer caching)
+COPY frontend/package*.json ./
 
-# Install all dependencies using npm install (not ci)
+# Use npm install — works with or without package-lock.json
 RUN npm install
-RUN cd backend && npm install
-RUN cd frontend && npm install
 
-# Copy source code
-COPY . .
+# Copy frontend source and build
+COPY frontend/ ./
+RUN npm run build
 
-# Build Angular app
-RUN cd frontend && npx ng build --configuration production
-
-# Production stage
-FROM node:20.19.0-alpine
+# ── STAGE 2: Backend ─────────────────────────────────────────────────────────
+FROM node:20-alpine AS backend
 
 WORKDIR /app
 
-# Copy built frontend
-COPY --from=build /app/frontend/dist/frontend/browser ./frontend/dist/frontend/browser
+# Copy backend package files
+COPY backend/package*.json ./
 
-# Copy backend
-COPY --from=build /app/backend ./backend
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/backend/package*.json ./backend/
+# Use npm install — works with or without package-lock.json
+RUN npm install --omit=dev
 
-# Install only production dependencies for backend
-RUN cd backend && npm install --omit=dev
+# Copy backend source
+COPY backend/ ./
+
+# Copy built frontend into backend's public folder for serving
+COPY --from=frontend-build /app/frontend/dist ./public
+
+# Create directory for SQLite database
+RUN mkdir -p /app/data
 
 # Expose port
 EXPOSE 3000
 
-# Start the server
-CMD ["node", "backend/server.js"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget -qO- http://localhost:3000/api/health || exit 1
+
+# Start backend
+CMD ["node", "server.js"]
