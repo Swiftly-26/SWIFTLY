@@ -122,7 +122,7 @@ import { Request, User, isOverdue } from '../models';
           <tbody>
             <tr *ngFor="let r of filteredRequests"
                 class="row" (click)="go(r.id)"
-                [class.mine-row]="r.assignedAgentId === currentUser?.id">
+                [class.mine-row]="r.assignedAgentId === currentUser.id">
               <td>
                 <span class="pbadge" [ngClass]="'p-' + r.priority.toLowerCase()">{{ r.priority }}</span>
               </td>
@@ -140,7 +140,7 @@ import { Request, User, isOverdue } from '../models';
               <td>
                 <span *ngIf="r.assignedAgentId" class="agent-name">
                   {{ agentName(r.assignedAgentId) }}
-                  <span *ngIf="r.assignedAgentId === currentUser?.id" class="you">you</span>
+                  <span *ngIf="r.assignedAgentId === currentUser.id" class="you">you</span>
                 </span>
                 <span *ngIf="!r.assignedAgentId" class="unassigned">Unassigned</span>
               </td>
@@ -153,7 +153,7 @@ import { Request, User, isOverdue } from '../models';
       <div class="card-list" *ngIf="!loading && filteredRequests.length > 0">
         <div *ngFor="let r of filteredRequests"
              class="req-card" (click)="go(r.id)"
-             [class.mine-card]="r.assignedAgentId === currentUser?.id">
+             [class.mine-card]="r.assignedAgentId === currentUser.id">
           <div class="card-top">
             <span class="pbadge" [ngClass]="'p-' + r.priority.toLowerCase()">{{ r.priority }}</span>
             <span class="sbadge" [ngClass]="sc(r.status)">{{ r.status }}</span>
@@ -165,7 +165,7 @@ import { Request, User, isOverdue } from '../models';
             <span *ngIf="isOv(r)" class="ov-dot">!</span>
             <span class="card-agent" *ngIf="r.assignedAgentId">
               {{ agentName(r.assignedAgentId) }}
-              <span *ngIf="r.assignedAgentId === currentUser?.id" class="you">you</span>
+              <span *ngIf="r.assignedAgentId === currentUser.id" class="you">you</span>
             </span>
             <span *ngIf="!r.assignedAgentId" class="unassigned">Unassigned</span>
           </div>
@@ -437,7 +437,7 @@ export class RequestListComponent implements OnInit, OnDestroy {
         : list.filter(r => r.assignedAgentId === this.filters.agent);
     }
     if (!this.isAdmin && this.filters.mineOnly)
-      list = list.filter(r => r.assignedAgentId === this.currentUser?.id);
+      list = list.filter(r => r.assignedAgentId === this.currentUser.id);
     if (this.filters.overdueOnly) list = list.filter(r => isOverdue(r));
 
     list.sort((a, b) => {

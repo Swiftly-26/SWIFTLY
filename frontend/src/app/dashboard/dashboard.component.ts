@@ -12,11 +12,11 @@ import { Request, User, isOverdue } from '../models';
     <div class="dashboard">
 
       <div class="greeting">
-        <h1 class="greeting-title">Hello, {{ currentUser?.name }}</h1>
-        <p class="greeting-sub" *ngIf="currentUser?.role === 'Agent'">
+        <h1 class="greeting-title">Hello, {{ currentUser.name }}</h1>
+        <p class="greeting-sub" *ngIf="currentUser.role === 'Agent'">
           Your dashboard — tasks assigned to you are highlighted below.
         </p>
-        <p class="greeting-sub" *ngIf="currentUser?.role === 'Admin'">
+        <p class="greeting-sub" *ngIf="currentUser.role === 'Admin'">
           Organisation-wide operational overview.
         </p>
       </div>
@@ -38,22 +38,22 @@ import { Request, User, isOverdue } from '../models';
           <div class="stat-card">
             <div class="stat-label">OPEN</div>
             <div class="stat-value">{{ statCount('Open') }}</div>
-            <div class="stat-ctx">{{ currentUser?.role === 'Admin' ? 'Org-wide' : 'Assigned to me' }}</div>
+            <div class="stat-ctx">{{ currentUser.role === 'Admin' ? 'Org-wide' : 'Assigned to me' }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">IN PROGRESS</div>
             <div class="stat-value">{{ statCount('In Progress') }}</div>
-            <div class="stat-ctx">{{ currentUser?.role === 'Admin' ? 'Org-wide' : 'My workload' }}</div>
+            <div class="stat-ctx">{{ currentUser.role === 'Admin' ? 'Org-wide' : 'My workload' }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">BLOCKED</div>
             <div class="stat-value">{{ statCount('Blocked') }}</div>
-            <div class="stat-ctx">{{ currentUser?.role === 'Admin' ? 'Org-wide' : 'Needs attention' }}</div>
+            <div class="stat-ctx">{{ currentUser.role === 'Admin' ? 'Org-wide' : 'Needs attention' }}</div>
           </div>
           <div class="stat-card overdue-card">
             <div class="stat-label">OVERDUE</div>
             <div class="stat-value text-danger">{{ overdueCount() }}</div>
-            <div class="stat-ctx">{{ currentUser?.role === 'Admin' ? 'Across all staff' : 'My overdue' }}</div>
+            <div class="stat-ctx">{{ currentUser.role === 'Admin' ? 'Across all staff' : 'My overdue' }}</div>
           </div>
         </div>
 
@@ -71,11 +71,11 @@ import { Request, User, isOverdue } from '../models';
         <!-- Recent Activity -->
         <div class="panel">
           <h2 class="panel-title">
-            {{ currentUser?.role === 'Admin' ? 'Recent Activity' : 'My Recent Activity' }}
+            {{ currentUser.role === 'Admin' ? 'Recent Activity' : 'My Recent Activity' }}
           </h2>
 
           <div *ngIf="recentItems().length === 0" class="empty-state">
-            <p>{{ currentUser?.role === 'Agent' ? 'No requests assigned to you yet.' : 'No requests yet.' }}</p>
+            <p>{{ currentUser.role === 'Agent' ? 'No requests assigned to you yet.' : 'No requests yet.' }}</p>
           </div>
 
           <div *ngFor="let r of recentItems()"
@@ -84,7 +84,7 @@ import { Request, User, isOverdue } from '../models';
             <div class="activity-top">
               <span class="badge" [ngClass]="'p-' + r.priority.toLowerCase()">{{ r.priority }}</span>
               <span class="activity-title">{{ r.title }}</span>
-              <span *ngIf="r.assignedAgentId === currentUser?.id" class="mine-badge">Mine</span>
+              <span *ngIf="r.assignedAgentId === currentUser.id" class="mine-badge">Mine</span>
             </div>
             <p class="activity-desc">{{ r.description | slice:0:120 }}...</p>
             <div class="activity-meta">
