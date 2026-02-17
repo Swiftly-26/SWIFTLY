@@ -1,0 +1,15 @@
+{
+  "name": "swiftly",
+  "version": "1.0.0",
+  "description": "SWIFTLY - Internal Work Request Management System",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "build": "cd frontend && npm install && npm run build && cd ..",
+    "postinstall": "cd backend && npm install"
+  },
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  }
+}
