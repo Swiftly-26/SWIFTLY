@@ -2,6 +2,7 @@
 
 SWIFTLY is a modern internal operations management tool built with Angular and Node.js. It helps teams manage work requests, track assignments, and monitor progress through role-based access control.
 
+![SWIFTLY](https://raw.githubusercontent.com/https://github.com/Swiftly-26/SWIFTLY/blob/main/imgs/dashboard.PNG)
 ---
 
 ## Table of Contents
