@@ -6,6 +6,7 @@ import {
 } from '@angular/ssr/node';
 import express from 'express';
 import { join } from 'node:path';
+import bootstrap from './main.server';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -66,3 +67,27 @@ if (isMainModule(import.meta.url) || process.env['pm_id']) {
  * Request handler used by the Angular CLI (for dev-server and during build) or Firebase Cloud Functions.
  */
 export const reqHandler = createNodeRequestHandler(app);
+
+/**
+ * Prerendering configuration for parameterized routes
+ * This function provides the parameters for the '/requests/:id' route during prerendering
+ */
+export const prerenderParams = {
+  '/requests/:id': async () => {
+    try {
+      // Option 1: Fetch from API if you have a backend
+      // const response = await fetch('https://api.example.com/requests');
+      // const requests = await response.json();
+      // return requests.map(req => ({ id: req.id.toString() }));
+      
+      // Option 2: Use static IDs (replace with your actual request IDs)
+      const requestIds = ['1', '2', '3', '4', '5']; // Add your actual request IDs here
+      return requestIds.map(id => ({ id }));
+    } catch (error) {
+      console.error('Error fetching request IDs for prerendering:', error);
+      return []; // Return empty array to skip prerendering for this route
+    }
+  }
+};
+
+export default bootstrap;

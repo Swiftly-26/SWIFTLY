@@ -49,10 +49,7 @@ frontend/coverage/
 frontend/coverage-frontend/
 
 # Environment files
-frontend/src/environments/environment.ts
-frontend/src/environments/environment.prod.ts
-frontend/src/environments/environment.*.ts
-!frontend/src/environments/environment.example.ts
+
 
 # Angular specific
 frontend/.angular/
@@ -131,8 +128,7 @@ Thumbs.db
 .env
 .env.test
 .env*.local
-.env.production
-.env.development
+
 
 # =========================
 # parcel-bundler cache

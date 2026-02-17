@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../services/api.service';
 
 @Component({
@@ -9,22 +10,24 @@ import { ApiService } from '../services/api.service';
   imports: [RouterLink, RouterLinkActive, CommonModule],
   template: `
     <aside class="sidebar">
-      <!-- Logo -->
       <div class="logo">
         <div class="logo-icon">S</div>
         <span class="logo-text">SWIFTLY</span>
+        <span class="logo-sub">Internal Work Request</span>
       </div>
 
-      <!-- Navigation -->
       <nav class="nav">
-        <a routerLink="/"
+        <a routerLink="/dashboard"
            routerLinkActive="active"
            [routerLinkActiveOptions]="{ exact: true }"
            class="nav-item">
           <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
             </svg>
           </span>
           Dashboard
@@ -34,131 +37,109 @@ import { ApiService } from '../services/api.service';
            routerLinkActive="active"
            class="nav-item">
           <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
               <line x1="16" y1="13" x2="8" y2="13"/>
               <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
             </svg>
           </span>
           Requests
         </a>
 
-        <!-- Agents link - Only visible to Admin users -->
-        <a *ngIf="isAdmin" 
+        <a *ngIf="isAdmin"
            routerLink="/agents"
            routerLinkActive="active"
            class="nav-item">
           <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
               <circle cx="12" cy="7" r="4"/>
             </svg>
           </span>
-          Agents
+          Manage Agents
         </a>
       </nav>
 
-      <!-- Footer label -->
-      <div class="sidebar-footer">Internal Operations Tool</div>
+      <div class="sidebar-footer">
+        <div class="copyright">Internal Operations Tool</div>
+      </div>
     </aside>
   `,
   styles: [`
     .sidebar {
-      width: 220px;
-      min-width: 220px;
-      background: #0a0f1c;
-      color: #cbd5e1;
+      width: 240px;
+      min-width: 240px;
+      background: #0f1422;
       display: flex;
       flex-direction: column;
-      padding: 0;
       height: 100vh;
-      border-right: 1px solid #2d2f3e;
+      border-right: 1px solid #2a2f3f;
     }
 
     .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 20px 20px 24px;
-      border-bottom: 1px solid #2d2f3e;
+      padding: 24px 20px;
+      border-bottom: 1px solid #2a2f3f;
     }
     .logo-icon {
-      width: 32px;
-      height: 32px;
+      width: 36px; height: 36px;
       background: #7c3aed;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 16px;
-      color: white;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 18px; color: white;
+      margin-bottom: 12px;
     }
     .logo-text {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #f1f5f9;
-      letter-spacing: -0.02em;
+      font-size: 1.2rem; font-weight: 700;
+      color: white; display: block; letter-spacing: -0.02em;
+    }
+    .logo-sub {
+      font-size: 0.7rem; color: #7e8aa8;
+      display: block; margin-top: 2px;
     }
 
     .nav {
-      display: flex;
-      flex-direction: column;
-      padding: 16px 12px;
-      gap: 4px;
-      flex: 1;
+      display: flex; flex-direction: column;
+      padding: 16px 12px; gap: 4px; flex: 1;
     }
     .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      color: #94a3b8;
-      text-decoration: none;
-      font-size: 0.875rem;
-      font-weight: 500;
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; border-radius: 10px;
+      color: #9aa4bf; text-decoration: none;
+      font-size: 0.9rem; font-weight: 500;
       transition: all 0.15s ease;
     }
-    .nav-item:hover {
-      background: #1e293b;
-      color: #f1f5f9;
-    }
-    .nav-item.active {
-      background: #7c3aed;
-      color: white;
-    }
-    .nav-item.active .nav-icon {
-      color: white;
-    }
-    .nav-icon {
-      display: flex;
-      align-items: center;
-      color: #64748b;
-      transition: color 0.15s;
-    }
-    .nav-item:hover .nav-icon {
-      color: #94a3b8;
-    }
+    .nav-item:hover { background: #1e2538; color: white; }
+    .nav-item.active { background: #7c3aed; color: white; }
+    .nav-item.active .nav-icon { color: white; }
+    .nav-icon { display: flex; align-items: center; color: #5f6b8a; }
 
     .sidebar-footer {
-      padding: 16px 20px;
-      font-size: 0.7rem;
-      color: #475569;
-      border-top: 1px solid #2d2f3e;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      padding: 20px;
+      border-top: 1px solid #2a2f3f;
+    }
+    .copyright {
+      font-size: 0.65rem; color: #5f6b8a;
+      text-align: center; text-transform: uppercase; letter-spacing: 0.05em;
     }
   `]
 })
-export class SidebarComponent implements OnInit {
+export class SidebarComponent implements OnInit, OnDestroy {
   isAdmin = false;
+  private sub!: Subscription;
 
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
-    this.isAdmin = this.api.getCurrentUser().role === 'Admin';
+    // React instantly when user switches roles
+    this.sub = this.api.user$.subscribe(user => {
+      this.isAdmin = user.role === 'Admin';
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
   }
 }

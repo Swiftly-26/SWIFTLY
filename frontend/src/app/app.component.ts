@@ -12,9 +12,9 @@ import { HeaderComponent } from './layout/header.component';
       <app-sidebar></app-sidebar>
       <div class="main-area">
         <app-header></app-header>
-        <div class="page-content">
+        <main class="page-content">
           <router-outlet></router-outlet>
-        </div>
+        </main>
       </div>
     </div>
   `,
@@ -34,7 +34,7 @@ import { HeaderComponent } from './layout/header.component';
     .page-content {
       flex: 1;
       overflow-y: auto;
-      padding: 28px 32px;
+      padding: 24px;
       background: #0a0f1c;
     }
   `]
